@@ -12,6 +12,8 @@ interface MindMapEdge {
   id: string
   source: string
   target: string
+  type?: string
+  style?: Record<string, unknown>
 }
 
 interface MindMapResponse {
@@ -20,8 +22,8 @@ interface MindMapResponse {
 }
 
 const ROOT_POSITION = { x: 0, y: 0 }
-const CATEGORY_RADIUS = 400
-const TWEET_RADIUS = 250
+const CATEGORY_RADIUS = 220
+const TWEET_RADIUS = 200
 
 function categoryPosition(index: number, total: number): { x: number; y: number } {
   const angle = (2 * Math.PI * index) / total - Math.PI / 2
@@ -78,6 +80,8 @@ async function getBaseGraph(): Promise<MindMapResponse> {
     id: `edge-root-cat-${cat.slug}`,
     source: 'root',
     target: `cat-${cat.slug}`,
+    type: 'chain',
+    style: { stroke: cat.color, strokeWidth: 1.5, opacity: 1 },
   }))
 
   return {
@@ -98,30 +102,54 @@ async function getCategoryTweetNodes(categorySlug: string): Promise<MindMapRespo
     return { nodes: [], edges: [] }
   }
 
-  const bookmarks = await prisma.bookmark.findMany({
-    where: {
-      categories: {
-        some: { category: { slug: categorySlug } },
+  const bookmarkCategories = await prisma.bookmarkCategory.findMany({
+    where: { category: { slug: categorySlug } },
+    select: {
+      confidence: true,
+      bookmark: {
+        select: {
+          id: true,
+          tweetId: true,
+          text: true,
+          authorHandle: true,
+          authorName: true,
+          tweetCreatedAt: true,
+          semanticTags: true,
+          mediaItems: {
+            select: { url: true, thumbnailUrl: true, type: true, imageTags: true },
+            take: 1,
+          },
+        },
       },
     },
-    select: {
-      id: true,
-      tweetId: true,
-      text: true,
-      authorHandle: true,
-      authorName: true,
-    },
-    take: 50, // Limit tweet nodes to avoid huge graphs
+    orderBy: [{ confidence: 'desc' }],
+    take: 66, // Max nodes across 4 rings (8+14+20+24)
   })
+
+  const bookmarks = bookmarkCategories.map((bc) => ({ ...bc.bookmark, confidence: bc.confidence }))
 
   const catNodeId = `cat-${categorySlug}`
   const catPos = { x: 0, y: 0 } // Position relative to the category
 
   const tweetNodes: MindMapNode[] = bookmarks.map((bookmark, index) => {
     const truncatedText =
-      bookmark.text.length > 100
-        ? bookmark.text.slice(0, 97) + '...'
+      bookmark.text.length > 80
+        ? bookmark.text.slice(0, 77) + '...'
         : bookmark.text
+
+    const firstMedia = bookmark.mediaItems[0] ?? null
+    const thumbnailUrl = firstMedia?.thumbnailUrl ?? (firstMedia?.type === 'photo' ? firstMedia.url : null) ?? null
+
+    // Extract a brief visual summary from structured imageTags for tooltip
+    let visualSummary: string | null = null
+    if (firstMedia?.imageTags) {
+      try {
+        const parsed = JSON.parse(firstMedia.imageTags) as Record<string, unknown>
+        visualSummary = [parsed.scene, parsed.action].filter(Boolean).join(' — ') || null
+      } catch {
+        visualSummary = null
+      }
+    }
 
     return {
       id: `tweet-${bookmark.tweetId}`,
@@ -132,6 +160,13 @@ async function getCategoryTweetNodes(categorySlug: string): Promise<MindMapRespo
         authorHandle: bookmark.authorHandle,
         authorName: bookmark.authorName,
         tweetUrl: `https://twitter.com/${bookmark.authorHandle}/status/${bookmark.tweetId}`,
+        thumbnailUrl,
+        hasMedia: firstMedia !== null,
+        mediaType: firstMedia?.type ?? null,
+        tweetCreatedAt: bookmark.tweetCreatedAt?.toISOString() ?? null,
+        categoryColor: category.color,
+        confidence: bookmark.confidence,
+        visualSummary,
       },
       position: tweetPosition(catPos, index, bookmarks.length),
     }

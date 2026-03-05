@@ -1,15 +1,52 @@
 'use client'
 
-import { ExternalLink, Download } from 'lucide-react'
-import type { BookmarkWithMedia } from '@/lib/types'
+import React, { useRef, useEffect, useState } from 'react'
+import { ExternalLink, Download, Play, Pencil, X, Check, ImageOff } from 'lucide-react'
+import type { BookmarkWithMedia, Category } from '@/lib/types'
 
-interface BookmarkCardProps {
-  bookmark: BookmarkWithMedia
+// Module-level cache so all cards share the same fetched list
+let cachedCategories: Category[] | null = null
+let cacheFetchPromise: Promise<Category[]> | null = null
+
+async function fetchAllCategories(): Promise<Category[]> {
+  if (cachedCategories !== null) return cachedCategories
+  if (cacheFetchPromise !== null) return cacheFetchPromise
+
+  cacheFetchPromise = fetch('/api/categories')
+    .then((res) => {
+      if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`)
+      return res.json()
+    })
+    .then((data: { categories: Category[] }) => {
+      cachedCategories = data.categories
+      cacheFetchPromise = null
+      return data.categories
+    })
+    .catch((err) => {
+      cacheFetchPromise = null
+      throw err
+    })
+
+  return cacheFetchPromise
 }
 
-function truncateText(text: string, maxLength: number): { truncated: string; wasTruncated: boolean } {
-  if (text.length <= maxLength) return { truncated: text, wasTruncated: false }
-  return { truncated: text.slice(0, maxLength), wasTruncated: true }
+const COLOR_PALETTE = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
+  '#10b981', '#3b82f6', '#ef4444', '#14b8a6',
+]
+
+function stringToColor(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length]
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 function formatDate(dateStr: string | null): string {
@@ -21,120 +58,544 @@ function formatDate(dateStr: string | null): string {
   })
 }
 
-function MediaPreview({ url }: { url: string }) {
+// ── Author Avatar ──────────────────────────────────────────────────────────────
+
+function AuthorAvatar({ name, handle, avatarUrl }: { name: string; handle: string; avatarUrl?: string | null }) {
+  const [imgFailed, setImgFailed] = useState(false)
+  const bg = stringToColor(handle)
+  const initials = getInitials(name)
+
+  // Prefer stored avatar URL, fall back to unavatar.io for any Twitter handle
+  const cleanHandle = handle.replace(/^@/, '')
+  const src = avatarUrl ?? (cleanHandle && cleanHandle !== 'unknown' ? `https://unavatar.io/twitter/${cleanHandle}` : null)
+
+  if (src && !imgFailed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={name}
+        className="flex-shrink-0 w-8 h-8 rounded-full object-cover select-none"
+        loading="lazy"
+        onError={() => setImgFailed(true)}
+      />
+    )
+  }
+
   return (
-    <div className="mt-3 rounded-lg overflow-hidden border border-zinc-800">
+    <div
+      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold select-none"
+      style={{ backgroundColor: bg }}
+      aria-hidden="true"
+    >
+      {initials}
+    </div>
+  )
+}
+
+// ── Top media slot (no margins — rendered full-bleed at top of card) ────────
+
+function proxyUrl(url: string): string {
+  return `/api/media?url=${encodeURIComponent(url)}`
+}
+
+/** Returns true if the URL points to an actual video file (not a thumbnail JPEG) */
+function isVideoUrl(url: string): boolean {
+  return url.includes('video.twimg.com') || url.includes('.mp4')
+}
+
+interface TopMediaSlotProps {
+  item: BookmarkWithMedia['mediaItems'][number]
+  tweetUrl: string
+}
+
+/** Consistent overlay shown on top of a thumbnail — used for both video and X-link cases */
+function MediaOverlay({ label, icon }: { label?: string; icon?: React.ReactNode }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors">
+      {icon ?? (
+        <span className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm">
+          {label ?? 'Watch on X ↗'}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** Placeholder shown when no thumbnail is available */
+function MediaPlaceholder({ onClick, label }: { onClick?: (e: React.MouseEvent) => void; label: string }) {
+  return (
+    <div
+      className="h-40 flex items-center justify-center bg-zinc-800/70 hover:bg-zinc-800 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
+      <span className="px-3 py-1.5 rounded-full bg-zinc-700 text-zinc-300 text-xs font-semibold">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function TopMediaSlot({ item, tweetUrl }: TopMediaSlotProps) {
+  const [playing, setPlaying] = useState(false)
+  const [imgError, setImgError] = useState(false)
+  const [videoFailed, setVideoFailed] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    if (playing && videoRef.current) {
+      videoRef.current.play().catch(() => {})
+    }
+  }, [playing])
+
+  // ── Photo ──────────────────────────────────────────────────────────────────
+  if (item.type === 'photo') {
+    if (imgError) {
+      return (
+        <a href={tweetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          <div className="h-36 flex flex-col items-center justify-center gap-2 bg-zinc-800/50 hover:bg-zinc-800/70 transition-colors">
+            <ImageOff size={18} className="text-zinc-600" />
+            <span className="px-3 py-1.5 rounded-full bg-zinc-700 text-zinc-400 text-xs font-semibold">
+              View on X ↗
+            </span>
+          </div>
+        </a>
+      )
+    }
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={proxyUrl(item.url)}
+        alt="Bookmark media"
+        className="w-full max-h-72 object-cover"
+        loading="lazy"
+        onError={() => setImgError(true)}
+      />
+    )
+  }
+
+  // ── Video/GIF playing inline ───────────────────────────────────────────────
+  if (playing && isVideoUrl(item.url) && !videoFailed) {
+    return (
+      // eslint-disable-next-line jsx-a11y/media-has-caption
+      <video
+        ref={videoRef}
+        src={item.url}
+        controls
+        className="w-full max-h-72 bg-zinc-950"
+        onError={() => { setPlaying(false); setVideoFailed(true) }}
+      />
+    )
+  }
+
+  // ── Link-to-X (stored URL is a thumbnail JPEG, or video playback failed) ──
+  if (!isVideoUrl(item.url) || videoFailed) {
+    const thumb = item.thumbnailUrl ?? (item.url.match(/\.(jpg|jpeg|png|webp)/) ? item.url : null)
+    return (
+      <a href={tweetUrl} target="_blank" rel="noopener noreferrer" className="relative block" onClick={(e) => e.stopPropagation()}>
+        {thumb && !imgError ? (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={proxyUrl(thumb)}
+              alt=""
+              className="w-full max-h-72 object-cover"
+              loading="lazy"
+              onError={() => setImgError(true)}
+            />
+            <MediaOverlay />
+          </div>
+        ) : (
+          <MediaPlaceholder label="Watch on X ↗" />
+        )}
+      </a>
+    )
+  }
+
+  // ── Playable video with thumbnail ──────────────────────────────────────────
+  const thumb = item.thumbnailUrl ?? null
+
+  if (imgError || !thumb) {
+    return (
+      <MediaPlaceholder
+        label={item.type === 'gif' ? '▶ Play GIF' : '▶ Play Video'}
+        onClick={(e) => { e.stopPropagation(); setPlaying(true) }}
+      />
+    )
+  }
+
+  return (
+    <div className="relative cursor-pointer" onClick={(e) => { e.stopPropagation(); setPlaying(true) }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={url}
-        alt="Tweet media"
-        className="w-full max-h-48 object-cover"
+        src={proxyUrl(thumb)}
+        alt=""
+        className="w-full max-h-72 object-cover"
         loading="lazy"
+        onError={() => setImgError(true)}
+      />
+      <MediaOverlay
+        icon={
+          <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+            <Play size={20} className="text-white fill-white ml-1" />
+          </div>
+        }
       />
     </div>
   )
 }
 
-function CategoryChips({ categories }: { categories: BookmarkWithMedia['categories'] }) {
-  if (categories.length === 0) return null
-  return (
-    <div className="flex flex-wrap gap-1.5 mt-3">
-      {categories.map((cat) => (
-        <span
-          key={cat.id}
-          className="px-2 py-0.5 rounded-full text-xs font-medium"
-          style={{ backgroundColor: `${cat.color}22`, color: cat.color, border: `1px solid ${cat.color}44` }}
-        >
-          {cat.name}
-        </span>
-      ))}
-    </div>
-  )
-}
+// ── Category chip ──────────────────────────────────────────────────────────────
 
-function CardActions({
-  tweetUrl,
-  hasMedia,
-  onDownload,
+function CategoryChip({
+  category,
+  onRemove,
 }: {
-  tweetUrl: string
-  hasMedia: boolean
-  onDownload: () => void
+  category: BookmarkWithMedia['categories'][number]
+  onRemove?: (id: string) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
-      {hasMedia && (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{
+        backgroundColor: `${category.color}18`,
+        color: category.color,
+        border: `1px solid ${category.color}30`,
+      }}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ backgroundColor: category.color }}
+      />
+      {category.name}
+      {onRemove && (
         <button
-          onClick={onDownload}
-          className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
-          title="Download media"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove(category.id)
+          }}
+          className="ml-0.5 opacity-50 hover:opacity-100 transition-opacity"
+          aria-label={`Remove ${category.name}`}
         >
-          <Download size={14} />
+          <X size={10} />
         </button>
       )}
-      <a
-        href={tweetUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
-        title="Open tweet"
-      >
-        <ExternalLink size={14} />
-      </a>
-    </div>
+    </span>
   )
 }
 
-export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
-  const { truncated, wasTruncated } = truncateText(bookmark.text, 120)
-  const firstImage = bookmark.mediaItems.find((m) => m.type === 'photo')
-  const tweetUrl = `https://twitter.com/${bookmark.authorHandle}/status/${bookmark.tweetId}`
-  const hasMedia = bookmark.mediaItems.length > 0
+// ── Inline category editor ─────────────────────────────────────────────────────
 
-  function handleDownload() {
-    fetch(`/api/export?type=zip&bookmarkId=${bookmark.id}`)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `bookmark-${bookmark.tweetId}.zip`
-        a.click()
-        URL.revokeObjectURL(url)
+interface CategoryEditorProps {
+  bookmarkId: string
+  currentCategoryIds: Set<string>
+  onSave: (newIds: string[]) => void
+  onClose: () => void
+}
+
+function CategoryEditor({ bookmarkId, currentCategoryIds, onSave, onClose }: CategoryEditorProps) {
+  const [allCategories, setAllCategories] = useState<Category[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set(currentCategoryIds))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchAllCategories()
+      .then((cats) => {
+        if (!cancelled) { setAllCategories(cats); setLoading(false) }
       })
-      .catch(console.error)
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load categories')
+          setLoading(false)
+        }
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (editorRef.current && !editorRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [onClose])
+
+  function toggleCategory(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    const ids = Array.from(selected)
+    try {
+      const res = await fetch(`/api/bookmarks/${bookmarkId}/categories`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryIds: ids }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`)
+      }
+      onSave(ids)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-all flex flex-col gap-0">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-zinc-100 truncate">{bookmark.authorName}</p>
-          <p className="text-xs text-zinc-500 truncate">@{bookmark.authorHandle}</p>
+    <div
+      ref={editorRef}
+      className="absolute left-0 right-0 top-full mt-2 z-50 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-2xl shadow-black/50"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">Edit categories</p>
+
+      {loading && <p className="text-xs text-zinc-600 py-2">Loading…</p>}
+
+      {!loading && allCategories.length === 0 && (
+        <p className="text-xs text-zinc-600 py-2">No categories found.</p>
+      )}
+
+      {!loading && allCategories.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+          {allCategories.map((cat) => {
+            const isSelected = selected.has(cat.id)
+            return (
+              <button
+                key={cat.id}
+                onClick={() => toggleCategory(cat.id)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all"
+                style={
+                  isSelected
+                    ? { backgroundColor: `${cat.color}33`, color: cat.color, border: `1px solid ${cat.color}88` }
+                    : { backgroundColor: 'transparent', color: '#71717a', border: '1px solid #3f3f46' }
+                }
+              >
+                {isSelected
+                  ? <Check size={10} className="flex-shrink-0" />
+                  : <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 opacity-40" style={{ backgroundColor: cat.color }} />
+                }
+                {cat.name}
+              </button>
+            )
+          })}
         </div>
+      )}
+
+      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+
+      <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-zinc-800">
+        <button onClick={onClose} className="px-2.5 py-1 text-xs rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-3 py-1 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
+    </div>
+  )
+}
 
-      <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
-        {truncated}
-        {wasTruncated && (
-          <span className="text-zinc-500">
-            ...{' '}
-            <a href={tweetUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-              more
+// ── Main card ──────────────────────────────────────────────────────────────────
+
+interface BookmarkCardProps {
+  bookmark: BookmarkWithMedia
+}
+
+export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
+  const [categories, setCategories] = useState(bookmark.categories)
+  const [expanded, setExpanded] = useState(false)
+  const [editingCategories, setEditingCategories] = useState(false)
+
+  const tweetUrl = `https://twitter.com/${bookmark.authorHandle}/status/${bookmark.tweetId}`
+  const firstMedia = bookmark.mediaItems[0] ?? null
+  const hasMedia = bookmark.mediaItems.length > 0
+  const dateStr = formatDate(bookmark.tweetCreatedAt ?? bookmark.importedAt ?? null)
+  const isKnownAuthor = bookmark.authorHandle !== 'unknown'
+
+  const TEXT_LIMIT = 280
+  const isLong = bookmark.text.length > TEXT_LIMIT
+  const displayText = expanded || !isLong ? bookmark.text : bookmark.text.slice(0, TEXT_LIMIT)
+
+  const currentCategoryIds = new Set(categories.map((c) => c.id))
+
+  function handleRemoveCategory(categoryId: string) {
+    const newIds = categories.filter((c) => c.id !== categoryId).map((c) => c.id)
+    setCategories((prev) => prev.filter((c) => c.id !== categoryId))
+    fetch(`/api/bookmarks/${bookmark.id}/categories`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: newIds }),
+    }).catch(() => { setCategories(bookmark.categories) })
+  }
+
+  function handleSaveCategories(newIds: string[]) {
+    const allCats = cachedCategories ?? []
+    const newCategories = newIds
+      .map((id) => {
+        const found = allCats.find((c) => c.id === id)
+        if (!found) return null
+        return { id: found.id, name: found.name, slug: found.slug, color: found.color, confidence: 1.0 }
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+    setCategories(newCategories)
+    setEditingCategories(false)
+  }
+
+  function handleDownload() {
+    if (!firstMedia) return
+    const a = document.createElement('a')
+    a.href = `/api/media?url=${encodeURIComponent(firstMedia.url)}&download=1`
+    a.download = ''
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  // Only show download if media is a photo or a real video (not a thumbnail JPEG stored as video)
+  const isDownloadable = firstMedia !== null &&
+    (firstMedia.type === 'photo' || isVideoUrl(firstMedia.url))
+
+  return (
+    <div className="group relative bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 overflow-hidden flex flex-col h-full">
+
+      {/* Top media — full bleed, no padding */}
+      {firstMedia && (
+        <div className="border-b border-zinc-800/60 flex-shrink-0">
+          <TopMediaSlot item={firstMedia} tweetUrl={tweetUrl} />
+        </div>
+      )}
+
+      {/* Card body */}
+      <div className="p-4 flex flex-col flex-1">
+
+        {/* Author row + hover actions */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isKnownAuthor && (
+              <AuthorAvatar name={bookmark.authorName} handle={bookmark.authorHandle} />
+            )}
+            <div className="min-w-0">
+              {isKnownAuthor && (
+                <p className="text-sm font-semibold text-zinc-100 truncate leading-tight">
+                  {bookmark.authorName}
+                </p>
+              )}
+              <p className="text-xs text-zinc-500 truncate">
+                {isKnownAuthor ? `@${bookmark.authorHandle}` : dateStr}
+              </p>
+            </div>
+          </div>
+
+          {/* Actions — visible on hover */}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+            {isDownloadable && (
+              <button
+                onClick={handleDownload}
+                className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                title="Download media"
+              >
+                <Download size={13} />
+              </button>
+            )}
+            <a
+              href={tweetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              title="Open on X"
+            >
+              <ExternalLink size={13} />
             </a>
-          </span>
-        )}
-      </p>
+          </div>
+        </div>
 
-      {firstImage && <MediaPreview url={firstImage.url} />}
+        {/* Tweet text */}
+        {displayText.length > 0 ? (
+          <p className="text-sm text-zinc-200 leading-relaxed flex-1">
+            {displayText}
+            {isLong && !expanded && (
+              <span>
+                {'… '}
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  more
+                </button>
+              </span>
+            )}
+            {isLong && expanded && (
+              <span>
+                {' '}
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="text-zinc-500 hover:text-zinc-400 transition-colors text-xs"
+                >
+                  less
+                </button>
+              </span>
+            )}
+          </p>
+        ) : !firstMedia ? (
+          <p className="text-xs text-zinc-700 italic flex-1">No text content</p>
+        ) : <div className="flex-1" />}
 
-      <CategoryChips categories={bookmark.categories} />
+        {/* Footer: categories + meta */}
+        <div className="relative mt-auto pt-3 border-t border-zinc-800/50">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {categories.map((cat) => (
+              <CategoryChip key={cat.id} category={cat} onRemove={handleRemoveCategory} />
+            ))}
+            {categories.length === 0 && (
+              <span className="text-xs text-zinc-700 italic">Uncategorized</span>
+            )}
+            <button
+              onClick={() => setEditingCategories((v) => !v)}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs text-zinc-700 hover:text-zinc-300 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-all opacity-0 group-hover:opacity-100"
+              title="Edit categories"
+            >
+              <Pencil size={10} />
+              edit
+            </button>
 
-      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
-        <span className="text-xs text-zinc-500">
-          {formatDate(bookmark.tweetCreatedAt ?? bookmark.importedAt ?? null)}
-        </span>
-        <CardActions tweetUrl={tweetUrl} hasMedia={hasMedia} onDownload={handleDownload} />
+            {/* Date — pushed to right */}
+            {isKnownAuthor && dateStr && (
+              <span className="ml-auto text-xs text-zinc-600 flex-shrink-0">
+                {dateStr}
+              </span>
+            )}
+          </div>
+
+          {editingCategories && (
+            <CategoryEditor
+              bookmarkId={bookmark.id}
+              currentCategoryIds={currentCategoryIds}
+              onSave={handleSaveCategories}
+              onClose={() => setEditingCategories(false)}
+            />
+          )}
+        </div>
+
       </div>
     </div>
   )

@@ -87,9 +87,7 @@ export default function MindmapPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen w-full">
-        <div className="text-center">
-          <p className="text-zinc-400">{error}</p>
-        </div>
+        <p className="text-zinc-400">{error}</p>
       </div>
     )
   }

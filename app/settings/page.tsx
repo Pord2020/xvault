@@ -1,7 +1,33 @@
 'use client'
 
-import { useState } from 'react'
-import { Eye, EyeOff, Download, Check, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Eye,
+  EyeOff,
+  Download,
+  Check,
+  AlertCircle,
+  Key,
+  Database,
+  Info,
+  Trash2,
+  Shield,
+  ExternalLink,
+  ChevronDown,
+  Zap,
+} from 'lucide-react'
+
+const ANTHROPIC_MODELS = [
+  { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', description: 'Fast & Cheap' },
+  { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6', description: 'Smart & Balanced' },
+  { value: 'claude-opus-4-6', label: 'Opus 4.6', description: 'Most Capable' },
+]
+
+const OPENAI_MODELS = [
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast & Cheap' },
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Smart & Balanced' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Powerful' },
+]
 
 interface Toast {
   type: 'success' | 'error'
@@ -10,30 +36,88 @@ interface Toast {
 
 function ToastAlert({ toast }: { toast: Toast }) {
   return (
-    <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${
-      toast.type === 'success'
-        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-    }`}>
-      {toast.type === 'success' ? <Check size={15} /> : <AlertCircle size={15} />}
+    <div
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border ${
+        toast.type === 'success'
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+          : 'bg-red-500/10 text-red-400 border-red-500/20'
+      }`}
+    >
+      {toast.type === 'success' ? <Check size={15} className="shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
       {toast.message}
     </div>
   )
 }
 
-function SectionHeader({ title, description }: { title: string; description: string }) {
+interface SectionProps {
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  title: string
+  description: string
+  children: React.ReactNode
+  variant?: 'default' | 'danger'
+}
+
+function Section({ icon: Icon, title, description, children, variant = 'default' }: SectionProps) {
+  const isDanger = variant === 'danger'
   return (
-    <div className="mb-4">
-      <h2 className="text-base font-semibold text-zinc-100">{title}</h2>
-      <p className="text-sm text-zinc-400 mt-0.5">{description}</p>
+    <div
+      className={`bg-zinc-900 rounded-2xl p-6 transition-all duration-200 ${
+        isDanger
+          ? 'border border-red-500/30 hover:border-red-500/50'
+          : 'border border-zinc-800 hover:border-zinc-700'
+      }`}
+    >
+      <div className="flex items-start gap-3 mb-5">
+        <div
+          className={`p-2.5 rounded-xl shrink-0 ${
+            isDanger ? 'bg-red-500/10' : 'bg-indigo-500/10'
+          }`}
+        >
+          <Icon size={16} className={isDanger ? 'text-red-400' : 'text-indigo-400'} />
+        </div>
+        <div>
+          <h2 className={`text-base font-semibold ${isDanger ? 'text-red-300' : 'text-zinc-100'}`}>
+            {title}
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5 leading-relaxed">{description}</p>
+        </div>
+      </div>
+      {children}
     </div>
   )
 }
 
-function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
+function ApiKeyField({
+  label,
+  placeholder,
+  fieldKey,
+  hint,
+  docHref,
+  onToast,
+}: {
+  label: string
+  placeholder: string
+  fieldKey: 'anthropicApiKey' | 'openaiApiKey'
+  hint: string
+  docHref: string
+  onToast: (t: Toast) => void
+}) {
   const [key, setKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savedMasked, setSavedMasked] = useState<string | null>(null)
+
+  // Load existing saved key status on mount
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d: Record<string, unknown>) => {
+        const hasKey = d[fieldKey === 'anthropicApiKey' ? 'hasAnthropicKey' : 'hasOpenaiKey']
+        const masked = d[fieldKey] as string | null
+        if (hasKey && masked) setSavedMasked(masked)
+      })
+      .catch(() => {})
+  }, [fieldKey])
 
   async function handleSave() {
     if (!key.trim()) {
@@ -45,108 +129,355 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claudeApiKey: key.trim() }),
+        body: JSON.stringify({ [fieldKey]: key.trim() }),
       })
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json() as { error?: string }
         throw new Error(data.error ?? 'Failed to save')
       }
-      onToast({ type: 'success', message: 'API key saved successfully' })
+      onToast({ type: 'success', message: `${label} saved successfully` })
+      setSavedMasked(key.trim().slice(0, 6) + '••••••••' + key.trim().slice(-4))
       setKey('')
     } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save API key' })
+      onToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save API key',
+      })
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-      <SectionHeader
-        title="Claude API Key"
-        description="Required for AI categorization. Get your key at console.anthropic.com"
-      />
-      <div className="flex gap-2">
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-zinc-300">{label}</p>
+        {savedMasked && (
+          <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+            <Check size={11} /> Saved: <span className="font-mono">{savedMasked}</span>
+          </span>
+        )}
+      </div>
+      <div className="flex gap-2.5">
         <div className="relative flex-1">
           <input
             type={showKey ? 'text' : 'password'}
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder="sk-ant-..."
-            className="w-full px-3 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors pr-10"
+            onKeyDown={(e) => e.key === 'Enter' && void handleSave()}
+            placeholder={savedMasked ? 'Enter new key to replace…' : placeholder}
+            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all duration-200 pr-10 font-mono"
           />
           <button
             type="button"
             onClick={() => setShowKey((v) => !v)}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label={showKey ? 'Hide key' : 'Show key'}
           >
             {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
         <button
-          onClick={handleSave}
+          onClick={() => void handleSave()}
           disabled={saving}
-          className="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium transition-colors shrink-0"
+          className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors shrink-0"
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">
-        Your key is stored locally and never sent to any third party.
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-zinc-600">{hint}</p>
+        <a
+          href={docHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-400 transition-colors"
+        >
+          Get key <ExternalLink size={11} />
+        </a>
+      </div>
     </div>
   )
 }
 
-function ExportButton({ label, href }: { label: string; href: string }) {
+function ModelSelector({
+  models,
+  settingKey,
+  defaultValue,
+  onToast,
+}: {
+  models: { value: string; label: string; description: string }[]
+  settingKey: 'anthropicModel' | 'openaiModel'
+  defaultValue: string
+  onToast: (t: Toast) => void
+}) {
+  const [value, setValue] = useState(defaultValue)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => { if (d[settingKey]) setValue(d[settingKey] as string) })
+      .catch(() => {})
+  }, [settingKey])
+
+  async function handleChange(newVal: string) {
+    setValue(newVal)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [settingKey]: newVal }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      onToast({ type: 'error', message: 'Failed to save model preference' })
+    }
+  }
+
+  const selected = models.find((m) => m.value === value) ?? models[0]
+
+  return (
+    <div className="flex items-center gap-2 mt-2.5">
+      <span className="text-xs text-zinc-500 shrink-0">Model:</span>
+      <div className="relative flex-1">
+        <select
+          value={value}
+          onChange={(e) => void handleChange(e.target.value)}
+          className="w-full appearance-none pl-3 pr-8 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+        >
+          {models.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label} — {m.description}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+      </div>
+      {saved && (
+        <span className="flex items-center gap-1 text-xs text-emerald-400 shrink-0">
+          <Check size={12} /> Saved
+        </span>
+      )}
+      {!saved && selected && (
+        <span className="text-xs text-zinc-600 shrink-0 hidden sm:block">{selected.description}</span>
+      )}
+    </div>
+  )
+}
+
+function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
+  return (
+    <Section
+      icon={Key}
+      title="AI Provider"
+      description="Configure your AI API key. Claude is used for categorization and semantic search. OpenAI works as an alternative."
+    >
+      {/* OAuth info box */}
+      <div className="flex gap-3 p-3.5 rounded-xl bg-indigo-500/8 border border-indigo-500/20 mb-5">
+        <Zap size={15} className="text-indigo-400 shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-indigo-300">Use X OAuth for free — no paid API key needed</p>
+          <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
+            Authenticate with your X account directly to use AI features without any API costs.
+          </p>
+          <a
+            href="https://x.com/viperr/status/2023977225087832266?s=20"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors mt-1.5"
+          >
+            Learn how it works <ExternalLink size={11} />
+          </a>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <ApiKeyField
+            label="Anthropic (Claude) — Recommended"
+            placeholder="sk-ant-api03-..."
+            fieldKey="anthropicApiKey"
+            hint="Used for AI categorization and search."
+            docHref="https://console.anthropic.com"
+            onToast={onToast}
+          />
+          <ModelSelector
+            models={ANTHROPIC_MODELS}
+            settingKey="anthropicModel"
+            defaultValue="claude-haiku-4-5-20251001"
+            onToast={onToast}
+          />
+        </div>
+        <div className="border-t border-zinc-800" />
+        <div>
+          <ApiKeyField
+            label="OpenAI — Alternative"
+            placeholder="sk-proj-..."
+            fieldKey="openaiApiKey"
+            hint="Fallback if no Claude key is set."
+            docHref="https://platform.openai.com/api-keys"
+            onToast={onToast}
+          />
+          <ModelSelector
+            models={OPENAI_MODELS}
+            settingKey="openaiModel"
+            defaultValue="gpt-4o-mini"
+            onToast={onToast}
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-600 mt-4">Keys are stored locally and never sent to any third party.</p>
+    </Section>
+  )
+}
+
+function ExportButton({
+  label,
+  href,
+  description,
+}: {
+  label: string
+  href: string
+  description: string
+}) {
   return (
     <button
-      onClick={() => { window.location.href = href }}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700"
+      onClick={() => {
+        window.location.href = href
+      }}
+      className="flex flex-col items-start gap-1 p-4 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 hover:border-zinc-600 transition-all duration-200 text-left group w-full"
     >
-      <Download size={15} />
-      {label}
+      <div className="flex items-center gap-2">
+        <Download size={14} className="text-zinc-400 group-hover:text-zinc-200 transition-colors" />
+        <span className="text-sm font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors">
+          {label}
+        </span>
+      </div>
+      <p className="text-xs text-zinc-600">{description}</p>
     </button>
   )
 }
 
 function DataSection() {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-      <SectionHeader
-        title="Data Management"
-        description="Export all your bookmarks in your preferred format."
-      />
-      <div className="flex flex-wrap gap-3">
-        <ExportButton label="Export All (CSV)" href="/api/export?type=csv" />
-        <ExportButton label="Export All (JSON)" href="/api/export?type=json" />
+    <Section
+      icon={Database}
+      title="Data Management"
+      description="Export all your bookmarks and category data for backup or migration."
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <ExportButton
+          label="Export as CSV"
+          href="/api/export?type=csv"
+          description="Spreadsheet-compatible format"
+        />
+        <ExportButton
+          label="Export as JSON"
+          href="/api/export?type=json"
+          description="Full data with all fields"
+        />
       </div>
-    </div>
+    </Section>
   )
 }
 
+function DangerZoneSection({ onToast }: { onToast: (t: Toast) => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
+  async function handleClearAll() {
+    setClearing(true)
+    try {
+      const res = await fetch('/api/bookmarks', { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json() as { error?: string }
+        throw new Error(data.error ?? 'Failed to clear')
+      }
+      onToast({ type: 'success', message: 'All bookmarks deleted successfully' })
+      setConfirming(false)
+    } catch (err) {
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to clear bookmarks' })
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  return (
+    <Section
+      icon={Shield}
+      title="Danger Zone"
+      description="Irreversible actions that affect all your data."
+      variant="danger"
+    >
+      <div className="flex items-center justify-between p-4 rounded-xl bg-red-500/5 border border-red-500/10">
+        <div>
+          <p className="text-sm font-medium text-zinc-300">Clear all bookmarks</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Permanently delete all imported bookmarks</p>
+        </div>
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 transition-all"
+          >
+            <Trash2 size={14} />
+            Clear all
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 mr-1">Are you sure?</span>
+            <button
+              onClick={() => setConfirming(false)}
+              disabled={clearing}
+              className="px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleClearAll()}
+              disabled={clearing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Trash2 size={12} />
+              {clearing ? 'Deleting…' : 'Yes, delete all'}
+            </button>
+          </div>
+        )}
+      </div>
+    </Section>
+  )
+}
+
+const TECH_STACK = [
+  { label: 'Next.js 15', color: 'bg-zinc-800 text-zinc-300 border-zinc-700' },
+  { label: 'Prisma + SQLite', color: 'bg-zinc-800 text-zinc-300 border-zinc-700' },
+  { label: 'Anthropic API', color: 'bg-blue-500/10 text-blue-300 border-blue-500/20' },
+  { label: 'React Flow', color: 'bg-zinc-800 text-zinc-300 border-zinc-700' },
+  { label: 'Tailwind CSS', color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
+]
+
 function AboutSection() {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-      <SectionHeader
-        title="About bookmarkX"
-        description=""
-      />
-      <p className="text-sm text-zinc-400 leading-relaxed">
-        <strong className="text-zinc-100">bookmarkX</strong> is a self-hosted app for organizing your
-        Twitter/X bookmarks. Import bookmarks via the twitter-web-exporter extension, use Claude AI to
-        automatically categorize them, and explore connections through the interactive mindmap.
+    <Section icon={Info} title="About Siftly" description="Self-hosted Twitter bookmark manager">
+      <p className="text-sm text-zinc-400 leading-relaxed mb-5">
+        <strong className="text-zinc-100 font-semibold">Siftly</strong> is a self-hosted app for
+        organizing your Twitter/X bookmarks. Import bookmarks via the twitter-web-exporter extension,
+        run the 4-stage AI pipeline to analyze images, extract entities, generate semantic tags, and
+        auto-categorize — then explore connections through the interactive mindmap.
       </p>
-      <div className="mt-4 flex flex-wrap gap-3 text-xs text-zinc-500">
-        <span>Next.js 15</span>
-        <span>·</span>
-        <span>Prisma + SQLite</span>
-        <span>·</span>
-        <span>Claude AI</span>
-        <span>·</span>
-        <span>React Flow</span>
+      <div className="flex flex-wrap gap-2">
+        {TECH_STACK.map((tech) => (
+          <span
+            key={tech.label}
+            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${tech.color}`}
+          >
+            {tech.label}
+          </span>
+        ))}
       </div>
-    </div>
+    </Section>
   )
 }
 
@@ -159,14 +490,18 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+
+      {/* Page Header */}
       <div className="mb-8">
+        <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-1">Configuration</p>
         <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
-        <p className="text-zinc-400 mt-1">Configure your bookmarkX instance</p>
+        <p className="text-zinc-400 mt-1 text-sm">Configure your Siftly instance</p>
       </div>
 
+      {/* Toast */}
       {toast && (
-        <div className="mb-5">
+        <div className="mb-6">
           <ToastAlert toast={toast} />
         </div>
       )}
@@ -174,6 +509,7 @@ export default function SettingsPage() {
       <div className="space-y-4">
         <ApiKeySection onToast={showToast} />
         <DataSection />
+        <DangerZoneSection onToast={showToast} />
         <AboutSection />
       </div>
     </div>

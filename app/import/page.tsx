@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Upload, CheckCircle, ChevronRight, Loader2 } from 'lucide-react'
+import { Upload, CheckCircle, ChevronRight, Loader2, Copy, Check, ExternalLink } from 'lucide-react'
 import * as Progress from '@radix-ui/react-progress'
 
 type Step = 1 | 2 | 3
+type Method = 'bookmarklet' | 'console'
 
 interface ImportResult {
   imported: number
@@ -14,10 +15,331 @@ interface ImportResult {
 }
 
 interface CategorizeStatus {
-  done: number
-  total: number
   status: string
+  stage: string | null
+  progress: { done: number; total: number }
 }
+
+// ── Bookmarklet script (captures Twitter/X bookmark API responses as you scroll) ──
+
+const BOOKMARKLET_SCRIPT = `(async function(){
+  if(!location.hostname.includes('twitter.com')&&!location.hostname.includes('x.com')){
+    showToast('\u274c Please navigate to x.com/bookmarks first','#ef4444');return;
+  }
+  function showToast(msg,bg){
+    var t=document.createElement('div');t.innerHTML=msg;
+    Object.assign(t.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',
+      zIndex:'2147483647',padding:'10px 18px',background:bg||'#1e1b4b',color:'#fff',
+      border:'1px solid rgba(255,255,255,0.15)',borderRadius:'8px',
+      fontSize:'13px',fontWeight:'600',fontFamily:'system-ui,sans-serif',
+      boxShadow:'0 4px 20px rgba(0,0,0,0.6)',whiteSpace:'nowrap',transition:'opacity 0.3s'});
+    document.body.appendChild(t);
+    setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove();},300);},4000);
+  }
+  var all=[],seen=new Set();
+  var btn=document.createElement('button');
+  btn.textContent='Scroll, then Export 0 bookmarks \u2192';
+  Object.assign(btn.style,{position:'fixed',top:'12px',right:'12px',zIndex:'2147483647',
+    padding:'10px 18px',background:'#4f46e5',color:'#fff',border:'none',borderRadius:'8px',
+    cursor:'pointer',fontSize:'14px',fontWeight:'700',
+    boxShadow:'0 0 0 2px rgba(99,102,241,.4),0 4px 16px rgba(0,0,0,.4)',
+    fontFamily:'system-ui,sans-serif'});
+  function addTweet(t){
+    if(!t||!t.rest_id||seen.has(t.rest_id))return;
+    seen.add(t.rest_id);
+    var leg=t.legacy||{},usr=(t.core&&t.core.user_results&&t.core.user_results.result&&t.core.user_results.result.legacy)||{};
+    var rawMedia=(leg.extended_entities&&leg.extended_entities.media)||(leg.entities&&leg.entities.media)||[];
+    var media=rawMedia.map(function(m){
+      var thumb=m.media_url_https||'';
+      if(m.type==='video'||m.type==='animated_gif'){
+        var variants=m.video_info&&m.video_info.variants||[];
+        var mp4s=variants.filter(function(v){return v.content_type==='video/mp4'&&v.url;}).sort(function(a,b){return(b.bitrate||0)-(a.bitrate||0);});
+        if(mp4s.length)return{type:m.type==='animated_gif'?'gif':'video',url:mp4s[0].url};
+        // No mp4 — degrade to photo so thumbnail shows correctly (actual video not available)
+        if(thumb)return{type:'photo',url:thumb};
+        return null;
+      }
+      return thumb?{type:'photo',url:thumb}:null;
+    }).filter(Boolean);
+    all.push({id:t.rest_id,author:usr.name||'Unknown',handle:'@'+(usr.screen_name||'unknown'),
+      avatar:usr.profile_image_url_https||'',timestamp:leg.created_at||'',
+      text:leg.full_text||leg.text||'',media:media,
+      hashtags:(leg.entities&&leg.entities.hashtags||[]).map(function(h){return h.text;}),
+      urls:(leg.entities&&leg.entities.urls||[]).map(function(u){return u.expanded_url;}).filter(Boolean)});
+    btn.textContent='Export '+all.length+' bookmarks \u2192';
+  }
+  function processEntry(e){
+    if(!e)return;
+    var ic=e.content&&(e.content.itemContent||(e.content.item&&e.content.item.itemContent));
+    if(ic&&ic.tweet_results){
+      var t=ic.tweet_results.result;
+      if(t){if(t.__typename==='TweetWithVisibilityResults'||t.__typename==='TweetWithVisibilityResult')t=t.tweet||t;addTweet(t);}
+    }
+    if(e.content&&e.content.items)e.content.items.forEach(function(i){processEntry({content:i.item||i});});
+  }
+  function processData(d){
+    var instr=
+      (d&&d.data&&d.data.bookmark_timeline_v2&&d.data.bookmark_timeline_v2.timeline&&d.data.bookmark_timeline_v2.timeline.instructions)||
+      (d&&d.data&&d.data.bookmarks_timeline&&d.data.bookmarks_timeline.timeline&&d.data.bookmarks_timeline.timeline.instructions)||
+      (d&&d.data&&d.data.timeline_by_id&&d.data.timeline_by_id.timeline&&d.data.timeline_by_id.timeline.instructions)||[];
+    instr.forEach(function(i){(i.entries||[]).forEach(processEntry);(i.moduleItems||[]).forEach(processEntry);});
+  }
+  var autoBtn=document.createElement('button');
+  function doExport(){
+    window.fetch=origFetch;
+    XMLHttpRequest.prototype.open=origOpen;
+    XMLHttpRequest.prototype.send=origSend;
+    if(!all.length){showToast('\u26a0\ufe0f No bookmarks captured \u2014 scroll or use Auto-scroll first!','#92400e');return;}
+    [btn,autoBtn].forEach(function(el){try{document.body.removeChild(el);}catch(e){}});
+    var blob=new Blob([JSON.stringify({bookmarks:all},null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='bookmarks.json';a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    showToast('\u2705 Downloaded '+all.length+' bookmarks! Upload to Siftly.','#14532d');
+  }
+  btn.onclick=doExport;
+  autoBtn.textContent='\u25b6 Auto-scroll';
+  Object.assign(autoBtn.style,{position:'fixed',top:'58px',right:'12px',zIndex:'2147483647',
+    padding:'8px 14px',background:'#18181b',color:'#a1a1aa',
+    border:'1px solid #3f3f46',borderRadius:'8px',
+    cursor:'pointer',fontSize:'12px',fontWeight:'600',fontFamily:'system-ui,sans-serif'});
+  var autoScrolling=false;
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+  async function runAutoScroll(){
+    var stagnant=0,lastCount=all.length;
+    while(autoScrolling){
+      window.scrollTo(0,document.documentElement.scrollHeight);
+      var col=document.querySelector('[data-testid="primaryColumn"]');
+      if(col)col.scrollTo(0,col.scrollHeight);
+      await sleep(900);
+      if(all.length>lastCount){stagnant=0;lastCount=all.length;}
+      else{
+        stagnant++;
+        if(stagnant>=8){
+          window.scrollTo(0,document.documentElement.scrollHeight);
+          await sleep(2000);
+          if(all.length===lastCount){
+            autoScrolling=false;
+            autoBtn.textContent='\u2705 Done \u2014 '+all.length+' captured';
+            autoBtn.style.background='#14532d';autoBtn.style.color='#86efac';autoBtn.style.border='1px solid #166534';
+            showToast('\u2705 Auto-scroll complete! '+all.length+' bookmarks ready. Click Export.','#14532d');
+            return;
+          }
+          stagnant=0;
+        }
+      }
+    }
+    autoBtn.textContent='\u25b6 Auto-scroll';
+    autoBtn.style.background='#18181b';autoBtn.style.color='#a1a1aa';autoBtn.style.border='1px solid #3f3f46';
+  }
+  autoBtn.onclick=function(){
+    if(autoScrolling){autoScrolling=false;return;}
+    autoScrolling=true;
+    autoBtn.textContent='\u23f8 Stop';
+    autoBtn.style.background='#4f46e5';autoBtn.style.color='#fff';autoBtn.style.border='none';
+    runAutoScroll();
+  };
+  document.body.appendChild(btn);
+  document.body.appendChild(autoBtn);
+  var origFetch=window.fetch;
+  window.fetch=async function(){
+    var r=await origFetch.apply(this,arguments);
+    try{
+      var u=arguments[0] instanceof Request?arguments[0].url:String(arguments[0]);
+      if(u.toLowerCase().includes('bookmark')){var d=await r.clone().json();processData(d);}
+    }catch(ex){}
+    return r;
+  };
+  var origOpen=XMLHttpRequest.prototype.open,origSend=XMLHttpRequest.prototype.send,xhrUrls=new WeakMap();
+  XMLHttpRequest.prototype.open=function(){xhrUrls.set(this,String(arguments[1]||''));return origOpen.apply(this,arguments);};
+  XMLHttpRequest.prototype.send=function(){
+    var xhr=this,u=xhrUrls.get(xhr)||'';
+    if(u.toLowerCase().includes('bookmark')){xhr.addEventListener('load',function(){try{processData(JSON.parse(xhr.responseText));}catch(ex){}});}
+    return origSend.apply(this,arguments);
+  };
+  showToast('\u2705 Active! Scroll your bookmarks \u2014 counter updates above.','#1e1b4b');
+})();`
+
+const BOOKMARKLET_HREF = `javascript:${encodeURIComponent(BOOKMARKLET_SCRIPT)}`
+
+const CONSOLE_SCRIPT = `(async function() {
+  if (!location.hostname.includes('twitter.com') && !location.hostname.includes('x.com')) {
+    alert('Run this on x.com/bookmarks'); return;
+  }
+  const all = [], seen = new Set();
+  function addTweet(t) {
+    if (!t?.rest_id || seen.has(t.rest_id)) return;
+    seen.add(t.rest_id);
+    const leg = t.legacy ?? {}, usr = t.core?.user_results?.result?.legacy ?? {};
+    const media = (leg.extended_entities?.media ?? leg.entities?.media ?? []).map(m => {
+      const thumb = m.media_url_https ?? '';
+      if (m.type === 'video' || m.type === 'animated_gif') {
+        const mp4s = (m.video_info?.variants ?? []).filter(v => v.content_type === 'video/mp4' && v.url)
+          .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+        if (mp4s.length) return { type: m.type === 'animated_gif' ? 'gif' : 'video', url: mp4s[0].url };
+        // No mp4 — degrade to photo so thumbnail shows correctly (actual video not available)
+        return thumb ? { type: 'photo', url: thumb } : null;
+      }
+      return thumb ? { type: 'photo', url: thumb } : null;
+    }).filter(Boolean);
+    all.push({
+      id: t.rest_id, author: usr.name ?? 'Unknown', handle: '@' + (usr.screen_name ?? 'unknown'),
+      timestamp: leg.created_at ?? '', text: leg.full_text ?? leg.text ?? '', media,
+      hashtags: (leg.entities?.hashtags ?? []).map(h => h.text),
+      urls: (leg.entities?.urls ?? []).map(u => u.expanded_url).filter(Boolean)
+    });
+    btn.textContent = \`Export \${all.length} bookmarks →\`;
+  }
+  function processEntry(e) {
+    if (!e) return;
+    const ic = e.content?.itemContent ?? e.content?.item?.itemContent;
+    if (ic?.tweet_results) {
+      let t = ic.tweet_results.result;
+      if (t) {
+        if (t.__typename === 'TweetWithVisibilityResults' || t.__typename === 'TweetWithVisibilityResult') t = t.tweet ?? t;
+        addTweet(t);
+      }
+    }
+    if (e.content?.items) e.content.items.forEach(i => processEntry({ content: i.item ?? i }));
+  }
+  function processData(d) {
+    const instr =
+      d?.data?.bookmark_timeline_v2?.timeline?.instructions ??
+      d?.data?.bookmarks_timeline?.timeline?.instructions ??
+      d?.data?.timeline_by_id?.timeline?.instructions ?? [];
+    instr.forEach(i => {
+      (i.entries ?? []).forEach(processEntry);
+      (i.moduleItems ?? []).forEach(processEntry);
+    });
+  }
+  const btn = document.createElement('button');
+  btn.textContent = 'Scroll then click to Export →';
+  Object.assign(btn.style, {
+    position: 'fixed', top: '12px', right: '12px', zIndex: '2147483647',
+    padding: '10px 18px', background: '#4f46e5', color: '#fff',
+    border: 'none', borderRadius: '8px', cursor: 'pointer',
+    fontSize: '14px', fontWeight: '700',
+    boxShadow: '0 0 0 2px rgba(99,102,241,.4),0 4px 16px rgba(0,0,0,.4)',
+    fontFamily: 'system-ui,sans-serif'
+  });
+  function doExport() {
+    window.fetch = origFetch;
+    XMLHttpRequest.prototype.open = origOpen;
+    XMLHttpRequest.prototype.send = origSend;
+    [btn, autoBtn].forEach(el => { try { document.body.removeChild(el); } catch(e) {} });
+    if (!all.length) { alert('No bookmarks captured. Use Auto-scroll or scroll manually first.'); return; }
+    const blob = new Blob([JSON.stringify({ bookmarks: all }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'bookmarks.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    console.log(\`✅ Downloaded \${all.length} bookmarks!\`);
+  }
+  btn.onclick = doExport;
+  const autoBtn = document.createElement('button');
+  autoBtn.textContent = '▶ Auto-scroll';
+  Object.assign(autoBtn.style, {
+    position: 'fixed', top: '58px', right: '12px', zIndex: '2147483647',
+    padding: '8px 14px', background: '#18181b', color: '#a1a1aa',
+    border: '1px solid #3f3f46', borderRadius: '8px', cursor: 'pointer',
+    fontSize: '12px', fontWeight: '600', fontFamily: 'system-ui,sans-serif'
+  });
+  let autoScrolling = false;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  async function runAutoScroll() {
+    let stagnant = 0, lastCount = all.length;
+    while (autoScrolling) {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const col = document.querySelector('[data-testid="primaryColumn"]');
+      col?.scrollTo(0, col.scrollHeight);
+      await sleep(900);
+      if (all.length > lastCount) { stagnant = 0; lastCount = all.length; }
+      else {
+        stagnant++;
+        if (stagnant >= 8) {
+          window.scrollTo(0, document.documentElement.scrollHeight);
+          await sleep(2000);
+          if (all.length === lastCount) {
+            autoScrolling = false;
+            autoBtn.textContent = \`✅ Done — \${all.length} captured\`;
+            autoBtn.style.cssText += ';background:#14532d;color:#86efac;border:1px solid #166534';
+            console.log(\`✅ Auto-scroll complete! \${all.length} bookmarks ready. Click Export.\`);
+            return;
+          }
+          stagnant = 0;
+        }
+      }
+    }
+    autoBtn.textContent = '▶ Auto-scroll';
+    autoBtn.style.background = '#18181b'; autoBtn.style.color = '#a1a1aa'; autoBtn.style.border = '1px solid #3f3f46';
+  }
+  autoBtn.onclick = function() {
+    if (autoScrolling) { autoScrolling = false; return; }
+    autoScrolling = true;
+    autoBtn.textContent = '⏸ Stop';
+    autoBtn.style.background = '#4f46e5'; autoBtn.style.color = '#fff'; autoBtn.style.border = 'none';
+    runAutoScroll();
+  };
+  document.body.appendChild(btn);
+  document.body.appendChild(autoBtn);
+  const origFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const r = await origFetch.apply(this, args);
+    try {
+      const u = args[0] instanceof Request ? args[0].url : String(args[0]);
+      if (u.toLowerCase().includes('bookmark')) {
+        const d = await r.clone().json();
+        processData(d);
+      }
+    } catch(e) {}
+    return r;
+  };
+  const origOpen = XMLHttpRequest.prototype.open;
+  const origSend = XMLHttpRequest.prototype.send;
+  const xhrUrls = new WeakMap();
+  XMLHttpRequest.prototype.open = function(...args) {
+    xhrUrls.set(this, String(args[1] ?? ''));
+    return origOpen.apply(this, args);
+  };
+  XMLHttpRequest.prototype.send = function(...args) {
+    const xhr = this, u = xhrUrls.get(xhr) ?? '';
+    if (u.toLowerCase().includes('bookmark')) {
+      xhr.addEventListener('load', function() {
+        try { processData(JSON.parse(xhr.responseText)); } catch(e) {}
+      });
+    }
+    return origSend.apply(this, args);
+  };
+  console.log('✅ Script active. Scroll through your bookmarks, then click the purple button.');
+})();`
+
+// ── Draggable bookmarklet link ────────────────────────────────────────────────
+// React blocks javascript: URLs set via JSX href as a security precaution.
+// We bypass this by setting the href attribute imperatively after mount so the
+// drag-to-bookmark-bar flow still works correctly in all browsers.
+
+function DraggableBookmarklet() {
+  const linkRef = useRef<HTMLAnchorElement>(null)
+
+  useEffect(() => {
+    // Set href imperatively — bypasses React's javascript: URL XSS guard
+    linkRef.current?.setAttribute('href', BOOKMARKLET_HREF)
+  }, [])
+
+  return (
+    <a
+      ref={linkRef}
+      draggable
+      onClick={(e) => e.preventDefault()}
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-grab active:cursor-grabbing select-none transition-colors"
+      title="Drag this to your bookmarks bar — do not click"
+    >
+      📥 Export X Bookmarks
+    </a>
+  )
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
 
 function StepIndicator({ current }: { current: Step }) {
   const steps = ['Upload', 'Importing', 'Categorize']
@@ -43,7 +365,26 @@ function StepIndicator({ current }: { current: Step }) {
   )
 }
 
-function InstructionsStep({ onFile }: { onFile: (file: File) => void }) {
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+    >
+      {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
+function UploadZone({ onFile }: { onFile: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -59,40 +400,246 @@ function InstructionsStep({ onFile }: { onFile: (file: File) => void }) {
     if (file) onFile(file)
   }, [onFile])
 
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+      onClick={() => inputRef.current?.click()}
+      className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+        dragging ? 'border-indigo-500 bg-indigo-500/5' : 'border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/30'
+      }`}
+    >
+      <Upload size={28} className="mx-auto mb-3 text-zinc-500" />
+      <p className="text-zinc-300 font-medium text-sm">Drop your bookmarks.json file here</p>
+      <p className="text-zinc-600 text-xs mt-1">or click to browse</p>
+      <input ref={inputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
+    </div>
+  )
+}
+
+function BookmarkletTab({ onFile }: { onFile: (file: File) => void }) {
   const steps = [
-    'Install the "twitter-web-exporter" browser extension (Chrome/Firefox)',
-    'Navigate to twitter.com/bookmarks while logged in',
-    'Click the extension icon and select "Export as JSON"',
-    'Upload the downloaded JSON file below',
+    {
+      num: 1,
+      title: 'Add the bookmarklet to your bookmark bar',
+      content: (
+        <div className="mt-2 space-y-3">
+          <p className="text-xs text-zinc-500">
+            Show your bookmark bar first: <strong className="text-zinc-300">View → Show Bookmarks Bar</strong>
+          </p>
+          {/* Option A: Drag */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
+            <div className="shrink-0 w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">A</div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-zinc-300 mb-1.5">Drag to bookmark bar</p>
+              <DraggableBookmarklet />
+            </div>
+          </div>
+          {/* Option B: Manual (more reliable in Chrome) */}
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
+            <div className="shrink-0 w-6 h-6 rounded-full bg-zinc-600/40 text-zinc-400 flex items-center justify-center text-xs font-bold mt-0.5">B</div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-zinc-300 mb-1.5">Manual (works in all browsers)</p>
+              <ol className="text-xs text-zinc-500 space-y-0.5 mb-2">
+                <li>1. Copy the URL below</li>
+                <li>2. Right-click bookmark bar → <strong className="text-zinc-400">Add bookmark / New bookmark</strong></li>
+                <li>3. Name it <em className="text-zinc-400">Export X Bookmarks</em> and paste the URL</li>
+              </ol>
+              <CopyButton text={BOOKMARKLET_HREF} />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      num: 2,
+      title: (
+        <span>
+          Go to{' '}
+          <a
+            href="https://x.com/bookmarks"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 hover:underline inline-flex items-center gap-1"
+          >
+            x.com/bookmarks <ExternalLink size={11} />
+          </a>{' '}
+          while logged in
+        </span>
+      ),
+    },
+    {
+      num: 3,
+      title: 'Click "Export X Bookmarks" in your bookmark bar',
+      content: (
+        <p className="text-xs text-zinc-500 mt-1">
+          A purple Export button will appear on the page
+        </p>
+      ),
+    },
+    {
+      num: 4,
+      title: 'Click "▶ Auto-scroll" to capture all bookmarks automatically',
+      content: (
+        <p className="text-xs text-zinc-500 mt-1">
+          A second button appears below the export button. Click it and it will scroll through all your bookmarks automatically — stopping when done. Or scroll manually if you prefer.
+        </p>
+      ),
+    },
+    {
+      num: 5,
+      title: 'Click the purple "Export N bookmarks" button',
+      content: (
+        <p className="text-xs text-zinc-500 mt-1">
+          A <code className="text-xs bg-zinc-800 px-1 py-0.5 rounded">bookmarks.json</code> file will download automatically.
+          Upload it below.
+        </p>
+      ),
+    },
   ]
 
   return (
-    <div>
-      <ol className="space-y-3 mb-8">
+    <div className="space-y-6">
+      <ol className="space-y-4">
         {steps.map((step, i) => (
-          <li key={i} className="flex items-start gap-3">
+          <li key={i} className="flex gap-3">
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-400 mt-0.5">
-              {i + 1}
+              {step.num}
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">{step}</p>
+            <div className="min-w-0">
+              <p className="text-sm text-zinc-300 leading-relaxed">{step.title}</p>
+              {step.content}
+            </div>
           </li>
         ))}
       </ol>
 
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
-          dragging ? 'border-indigo-500 bg-indigo-500/5' : 'border-zinc-700 hover:border-zinc-600 hover:bg-zinc-900'
-        }`}
-      >
-        <Upload size={32} className="mx-auto mb-3 text-zinc-500" />
-        <p className="text-zinc-300 font-medium">Drop your JSON file here</p>
-        <p className="text-zinc-500 text-sm mt-1">or click to browse</p>
-        <input ref={inputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
+      <div className="border-t border-zinc-800 pt-5">
+        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Upload the downloaded file</p>
+        <UploadZone onFile={onFile} />
       </div>
+    </div>
+  )
+}
+
+function ConsoleTab({ onFile }: { onFile: (file: File) => void }) {
+  const steps = [
+    {
+      num: 1,
+      title: (
+        <span>
+          Go to{' '}
+          <a
+            href="https://x.com/bookmarks"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 hover:underline inline-flex items-center gap-1"
+          >
+            x.com/bookmarks <ExternalLink size={11} />
+          </a>{' '}
+          while logged in
+        </span>
+      ),
+    },
+    {
+      num: 2,
+      title: 'Open browser DevTools and go to the Console tab',
+      content: (
+        <p className="text-xs text-zinc-500 mt-1">
+          Press <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">F12</kbd> on Windows/Linux or{' '}
+          <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">⌘⌥J</kbd> on Mac,
+          then click the <strong className="text-zinc-300">Console</strong> tab
+        </p>
+      ),
+    },
+    {
+      num: 3,
+      title: 'Paste and run the script below',
+      content: (
+        <div className="mt-2">
+          <div className="relative rounded-xl overflow-hidden border border-zinc-700 bg-zinc-950">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
+              <span className="text-xs text-zinc-600 font-mono">console script</span>
+              <CopyButton text={CONSOLE_SCRIPT} />
+            </div>
+            <pre className="text-xs text-zinc-400 p-3 overflow-auto max-h-40 font-mono leading-relaxed">
+              {CONSOLE_SCRIPT.slice(0, 300)}...
+            </pre>
+          </div>
+        </div>
+      ),
+    },
+    {
+      num: 4,
+      title: 'Press Enter, then scroll through all your bookmarks',
+      content: (
+        <p className="text-xs text-zinc-500 mt-1">
+          A purple button will appear. Scroll slowly to capture all bookmarks, then click the button to download.
+        </p>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <ol className="space-y-4">
+        {steps.map((step, i) => (
+          <li key={i} className="flex gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center text-xs font-bold text-zinc-400 mt-0.5">
+              {step.num}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-zinc-300 leading-relaxed">{step.title}</p>
+              {step.content}
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="border-t border-zinc-800 pt-5">
+        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Upload the downloaded file</p>
+        <UploadZone onFile={onFile} />
+      </div>
+    </div>
+  )
+}
+
+function InstructionsStep({ onFile }: { onFile: (file: File) => void }) {
+  const [method, setMethod] = useState<Method>('bookmarklet')
+
+  return (
+    <div>
+      {/* Method tabs */}
+      <div className="flex gap-1 mb-6 p-1 bg-zinc-800 rounded-xl">
+        <button
+          onClick={() => setMethod('bookmarklet')}
+          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            method === 'bookmarklet'
+              ? 'bg-zinc-900 text-zinc-100 shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          📥 Bookmarklet
+          <span className="ml-1.5 text-xs text-indigo-400 font-normal">Recommended</span>
+        </button>
+        <button
+          onClick={() => setMethod('console')}
+          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            method === 'console'
+              ? 'bg-zinc-900 text-zinc-100 shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          {'</>'} Console Script
+        </button>
+      </div>
+
+      {method === 'bookmarklet' ? (
+        <BookmarkletTab onFile={onFile} />
+      ) : (
+        <ConsoleTab onFile={onFile} />
+      )}
     </div>
   )
 }
@@ -135,27 +682,16 @@ function ImportingStep({ result, onCategorize }: {
 }
 
 function CategorizeStep() {
-  const [apiKey, setApiKey] = useState('')
   const [status, setStatus] = useState<CategorizeStatus | null>(null)
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
   async function startCategorization() {
-    if (!apiKey.trim()) {
-      setError('Please enter your Claude API key')
-      return
-    }
     setError('')
     setRunning(true)
 
     try {
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claudeApiKey: apiKey }),
-      })
-
       fetch('/api/categorize', { method: 'POST' }).catch(console.error)
       pollStatus()
     } catch (err) {
@@ -170,7 +706,7 @@ function CategorizeStep() {
         const res = await fetch('/api/categorize')
         const data = await res.json()
         setStatus(data)
-        if (data.status === 'idle' || data.done >= data.total) {
+        if (data.status === 'idle' || (data.progress?.done ?? 0) >= (data.progress?.total ?? 1)) {
           clearInterval(interval)
           setDone(true)
           setRunning(false)
@@ -182,30 +718,12 @@ function CategorizeStep() {
     }, 2000)
   }
 
-  const progress = status ? Math.round((status.done / Math.max(status.total, 1)) * 100) : 0
+  const progress = status ? Math.round(((status.progress?.done ?? 0) / Math.max(status.progress?.total ?? 1, 1)) * 100) : 0
 
   return (
     <div className="space-y-6">
       {!running && !done && (
         <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-              Claude API Key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="w-full px-3 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-            <p className="mt-1 text-xs text-zinc-500">
-              Get your key at{' '}
-              <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                console.anthropic.com
-              </a>
-            </p>
-          </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             onClick={startCategorization}
@@ -221,7 +739,11 @@ function CategorizeStep() {
           <div className="flex items-center gap-3">
             <Loader2 size={20} className="text-indigo-400 animate-spin shrink-0" />
             <p className="text-zinc-300 font-medium">
-              {status ? `${status.done} / ${status.total} categorized` : 'Starting...'}
+              {status
+                ? status.stage
+                  ? `${status.stage === 'categorize' ? `${status.progress?.done ?? 0} / ${status.progress?.total ?? 0} categorized` : status.stage.replace('_', ' ') + '…'}`
+                  : 'Starting…'
+                : 'Starting…'}
             </p>
           </div>
           <Progress.Root className="relative h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
@@ -271,9 +793,9 @@ export default function ImportPage() {
       if (!res.ok) throw new Error(data.error ?? 'Import failed')
 
       setImportResult({
-        imported: data.imported ?? 0,
+        imported: data.imported ?? data.count ?? 0,
         skipped: data.skipped ?? 0,
-        total: (data.imported ?? 0) + (data.skipped ?? 0),
+        total: (data.imported ?? data.count ?? 0) + (data.skipped ?? 0),
       })
     } catch (err) {
       console.error('Import error:', err)
@@ -287,7 +809,7 @@ export default function ImportPage() {
     <div className="p-8 max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-zinc-100">Import Bookmarks</h1>
-        <p className="text-zinc-400 mt-1">Import your Twitter bookmarks from a JSON export.</p>
+        <p className="text-zinc-400 mt-1">Export your X/Twitter bookmarks as JSON, then upload below.</p>
       </div>
 
       <StepIndicator current={step} />

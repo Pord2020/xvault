@@ -161,8 +161,106 @@ function parseSingleTweet(tweet: RawTweet): ParsedBookmark | null {
   }
 }
 
+interface FlatExportRow {
+  'Tweet Id'?: string
+  'Full Text'?: string
+  'Created At'?: string
+  'User Screen Name'?: string
+  'User Name'?: string
+  'Media URLs'?: string
+  'Media Types'?: string
+  'Hashtags'?: string
+  'Expanded URLs'?: string
+  [key: string]: unknown
+}
+
+function isFlatExportFormat(item: unknown): item is FlatExportRow {
+  if (typeof item !== 'object' || item === null) return false
+  return 'Tweet Id' in item || 'Full Text' in item
+}
+
+function convertFlatExportRow(row: FlatExportRow): RawTweet {
+  const mediaUrls = row['Media URLs'] ? row['Media URLs'].split(',').map((u) => u.trim()).filter(Boolean) : []
+  const mediaTypes = row['Media Types'] ? row['Media Types'].split(',').map((t) => t.trim()).filter(Boolean) : []
+  const mediaEntities: TwitterMediaEntity[] = mediaUrls.map((url, i) => {
+    const rawType = mediaTypes[i] ?? 'photo'
+    const type = rawType === 'video' ? 'video' : rawType === 'gif' ? 'animated_gif' : 'photo'
+    if (type === 'video' || type === 'animated_gif') {
+      return { type, media_url_https: url, video_info: { variants: [{ content_type: 'video/mp4', bitrate: 0, url }] } }
+    }
+    return { type, media_url_https: url }
+  })
+
+  const hashtags = row['Hashtags'] ? row['Hashtags'].split(',').map((h) => ({ text: h.trim() })).filter((h) => h.text) : []
+  const urls = row['Expanded URLs'] ? row['Expanded URLs'].split(',').map((u) => ({ expanded_url: u.trim() })).filter((u) => u.expanded_url) : []
+
+  return {
+    id_str: row['Tweet Id'],
+    full_text: row['Full Text'],
+    created_at: row['Created At'],
+    user: { screen_name: row['User Screen Name'], name: row['User Name'] },
+    entities: { hashtags, urls, media: mediaEntities.length > 0 ? mediaEntities : undefined },
+    extended_entities: mediaEntities.length > 0 ? { media: mediaEntities } : undefined,
+  }
+}
+
+interface ConsoleExportBookmark {
+  id?: string
+  author?: string
+  handle?: string
+  timestamp?: string
+  text?: string
+  media?: { type?: string; url?: string }[]
+  hashtags?: string[]
+  urls?: string[]
+}
+
+function isConsoleExportFormat(obj: unknown): obj is { bookmarks: ConsoleExportBookmark[] } {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'bookmarks' in obj &&
+    Array.isArray((obj as Record<string, unknown>).bookmarks)
+  )
+}
+
+function convertConsoleExportRow(row: ConsoleExportBookmark): RawTweet {
+  const mediaEntities: TwitterMediaEntity[] = (row.media ?? [])
+    .filter((m) => m.url)
+    .map((m) => {
+      const type = m.type === 'video' ? 'video' : m.type === 'gif' ? 'animated_gif' : 'photo'
+      if (type === 'video' || type === 'animated_gif') {
+        return { type, media_url_https: m.url, video_info: { variants: [{ content_type: 'video/mp4', bitrate: 0, url: m.url! }] } }
+      }
+      return { type, media_url_https: m.url }
+    })
+
+  const handle = (row.handle ?? '').replace(/^@/, '')
+
+  return {
+    id_str: row.id,
+    full_text: row.text,
+    created_at: row.timestamp,
+    user: { screen_name: handle || 'unknown', name: row.author || handle || 'Unknown' },
+    entities: {
+      hashtags: (row.hashtags ?? []).map((h) => ({ text: h })),
+      urls: (row.urls ?? []).map((u) => ({ expanded_url: u })),
+      media: mediaEntities.length > 0 ? mediaEntities : undefined,
+    },
+    extended_entities: mediaEntities.length > 0 ? { media: mediaEntities } : undefined,
+  }
+}
+
 function normalizeTweetArray(parsed: unknown): RawTweet[] {
+  // Console script export format: { exportDate, totalBookmarks, bookmarks: [...] }
+  if (isConsoleExportFormat(parsed)) {
+    return parsed.bookmarks.map(convertConsoleExportRow)
+  }
+
   if (Array.isArray(parsed)) {
+    if (parsed.length > 0 && isFlatExportFormat(parsed[0])) {
+      return parsed.map((row) => convertFlatExportRow(row as FlatExportRow))
+    }
     return parsed as RawTweet[]
   }
 

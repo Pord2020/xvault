@@ -8,19 +8,23 @@ datasource db {
 }
 
 model Bookmark {
-  id            String   @id @default(cuid())
-  tweetId       String   @unique
+  id            String    @id @default(cuid())
+  tweetId       String    @unique
   text          String
   authorHandle  String
   authorName    String
   tweetCreatedAt DateTime?
-  importedAt    DateTime @default(now())
-  rawJson       String   // full JSON stored as string
+  importedAt    DateTime  @default(now())
+  rawJson       String    // full JSON stored as string
+  semanticTags  String?   // JSON array of AI-generated searchable tags
+  entities      String?   // JSON: {hashtags[], urls[], mentions[], tools[], tweetType}
+  enrichedAt    DateTime? // when AI enrichment last ran — drives incremental processing
   mediaItems    MediaItem[]
   categories    BookmarkCategory[]
 
   @@index([authorHandle])
   @@index([tweetCreatedAt])
+  @@index([enrichedAt])
 }
 
 model Category {
@@ -45,13 +49,17 @@ model BookmarkCategory {
 }
 
 model MediaItem {
-  id          String   @id @default(cuid())
-  bookmarkId  String
-  type        String   // photo | video | gif
-  url         String
+  id           String   @id @default(cuid())
+  bookmarkId   String
+  type         String   // photo | video | gif
+  url          String
   thumbnailUrl String?
-  localPath   String?
-  bookmark    Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  localPath    String?
+  imageTags    String?  // AI-generated structured JSON visual description
+  bookmark     Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@index([bookmarkId])
+  @@index([url])
 }
 
 model ImportJob {

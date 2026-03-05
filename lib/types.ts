@@ -3,6 +3,7 @@ export interface MediaItem {
   type: string
   url: string
   thumbnailUrl: string | null
+  imageTags?: string | null
 }
 
 export interface BookmarkCategory {

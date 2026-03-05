@@ -11,15 +11,36 @@ function parseIntParam(value: string | null, defaultValue: number): number {
   return isNaN(parsed) || parsed < 1 ? defaultValue : parsed
 }
 
+export async function DELETE(): Promise<NextResponse> {
+  try {
+    // Delete media items and category links first (cascade), then bookmarks
+    await prisma.$transaction([
+      prisma.bookmarkCategory.deleteMany({}),
+      prisma.mediaItem.deleteMany({}),
+      prisma.bookmark.deleteMany({}),
+    ])
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Clear bookmarks error:', err)
+    return NextResponse.json(
+      { error: `Failed to clear bookmarks: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    )
+  }
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url)
 
   const q = searchParams.get('q')?.trim() ?? ''
   const categorySlug = searchParams.get('category')?.trim() ?? ''
   const mediaType = searchParams.get('mediaType')?.trim() ?? ''
+  const uncategorized = searchParams.get('uncategorized') === 'true'
+  const sortParam = searchParams.get('sort')?.trim() ?? 'newest'
   const page = parseIntParam(searchParams.get('page'), DEFAULT_PAGE)
   const limit = Math.min(parseIntParam(searchParams.get('limit'), DEFAULT_LIMIT), MAX_LIMIT)
   const skip = (page - 1) * limit
+  const orderDir = sortParam === 'oldest' ? 'asc' : 'desc'
 
   const where: Record<string, unknown> = {}
 
@@ -27,7 +48,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     where.text = { contains: q }
   }
 
-  if (categorySlug) {
+  if (uncategorized) {
+    where.categories = { none: {} }
+  } else if (categorySlug) {
     where.categories = {
       some: {
         category: { slug: categorySlug },
@@ -47,7 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where,
         skip,
         take: limit,
-        orderBy: { importedAt: 'desc' },
+        orderBy: [{ tweetCreatedAt: orderDir }, { importedAt: orderDir }],
         include: {
           mediaItems: true,
           categories: {
