@@ -125,7 +125,7 @@ export default function AISearchPage() {
           Find anything in your bookmarks
         </h1>
         <p className="text-zinc-500 text-sm">
-          Describe what you&apos;re looking for in plain English. Works great for memes too.
+          Describe what you&apos;re looking for.
         </p>
       </div>
 

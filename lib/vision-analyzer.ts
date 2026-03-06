@@ -288,8 +288,8 @@ export async function analyzeAllUntagged(
 
 // ── Batch semantic enrichment ──────────────────────────────────────────────────
 
-const ENRICH_BATCH_SIZE = 8
-const ENRICH_CONCURRENCY = 4
+const ENRICH_BATCH_SIZE = 5
+const ENRICH_CONCURRENCY = 2
 
 interface BookmarkForEnrichment {
   id: string
@@ -353,29 +353,41 @@ async function enrichBatchSemanticTags(
   const model = await getAnthropicModel()
   const prompt = buildEnrichmentPrompt(bookmarks)
 
-  try {
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
-    })
-    const text = msg.content.find((b) => b.type === 'text')?.text ?? ''
-    const match = text.match(/\[[\s\S]*\]/)
-    if (!match) return []
+  const ENRICH_RETRY_DELAYS = [2000, 5000]
 
-    const parsed: unknown = JSON.parse(match[0])
-    if (!Array.isArray(parsed)) return []
+  for (let attempt = 0; attempt <= ENRICH_RETRY_DELAYS.length; attempt++) {
+    try {
+      const msg = await client.messages.create({
+        model,
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const text = msg.content.find((b) => b.type === 'text')?.text ?? ''
+      const match = text.match(/\[[\s\S]*\]/)
+      if (!match) {
+        console.warn(`[enrich] no JSON array in response (attempt ${attempt + 1}), text length: ${text.length}`)
+        continue
+      }
 
-    return (parsed as Record<string, unknown>[]).map((item): EnrichmentResult => ({
-      id: String(item.id ?? ''),
-      tags: Array.isArray(item.tags) ? (item.tags as unknown[]).map(String).filter(Boolean) : [],
-      sentiment: String(item.sentiment ?? 'neutral'),
-      people: Array.isArray(item.people) ? (item.people as unknown[]).map(String).filter(Boolean) : [],
-      companies: Array.isArray(item.companies) ? (item.companies as unknown[]).map(String).filter(Boolean) : [],
-    })).filter((r) => r.id)
-  } catch {
-    return []
+      const parsed: unknown = JSON.parse(match[0])
+      if (!Array.isArray(parsed)) continue
+
+      return (parsed as Record<string, unknown>[]).map((item): EnrichmentResult => ({
+        id: String(item.id ?? ''),
+        tags: Array.isArray(item.tags) ? (item.tags as unknown[]).map(String).filter(Boolean) : [],
+        sentiment: String(item.sentiment ?? 'neutral'),
+        people: Array.isArray(item.people) ? (item.people as unknown[]).map(String).filter(Boolean) : [],
+        companies: Array.isArray(item.companies) ? (item.companies as unknown[]).map(String).filter(Boolean) : [],
+      })).filter((r) => r.id)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[enrich] batch failed (attempt ${attempt + 1}): ${msg.slice(0, 120)}`)
+      const isClientError = msg.includes('400') || msg.includes('401') || msg.includes('403') || msg.includes('422')
+      if (isClientError || attempt >= ENRICH_RETRY_DELAYS.length) break
+      await new Promise((r) => setTimeout(r, ENRICH_RETRY_DELAYS[attempt]))
+    }
   }
+  return []
 }
 
 /**
@@ -475,14 +487,9 @@ export async function enrichAllBookmarks(
               },
             }),
           )
-        } else {
-          updates.push(
-            prisma.bookmark.update({
-              where: { id: b.id },
-              data: { semanticTags: '[]' },
-            }),
-          )
         }
+        // Don't mark failed enrichments as '[]' — leave semanticTags: null so
+        // they are retried on the next pipeline run without needing force=true.
       }
 
       if (updates.length > 0) {

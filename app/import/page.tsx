@@ -683,9 +683,25 @@ function CategorizeStep() {
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
-  // Auto-start on mount
+  // On mount: check if pipeline is already running (started by import route),
+  // then either attach to it or start it if it hasn't begun yet.
   useEffect(() => {
-    void startCategorization()
+    void (async () => {
+      try {
+        const res = await fetch('/api/categorize')
+        const data = await res.json() as CategorizeStatus
+        if (data.status === 'running' || data.status === 'stopping') {
+          // Pipeline already started by the import route — just attach and poll
+          setRunning(true)
+          pollStatus(true)
+        } else {
+          // Pipeline not running yet — start it
+          void startCategorization()
+        }
+      } catch {
+        void startCategorization()
+      }
+    })()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -694,21 +710,35 @@ function CategorizeStep() {
     setRunning(true)
 
     try {
-      fetch('/api/categorize', { method: 'POST' }).catch(console.error)
-      pollStatus()
+      const res = await fetch('/api/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok && res.status !== 409) {
+        const data = await res.json() as { error?: string }
+        throw new Error(data.error ?? 'Failed to start categorization')
+      }
+      // 409 means already running — fine, just poll
+      pollStatus(true)
     } catch (err) {
       setError(`Failed to start categorization: ${err instanceof Error ? err.message : String(err)}`)
       setRunning(false)
     }
   }
 
-  function pollStatus() {
+  function pollStatus(hasSeenRunning = false) {
+    let seenRunning = hasSeenRunning
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/categorize')
-        const data = await res.json()
+        const data = await res.json() as CategorizeStatus
         setStatus(data)
-        if (data.status === 'idle' || (data.progress?.done ?? 0) >= (data.progress?.total ?? 1)) {
+        if (data.status === 'running' || data.status === 'stopping') {
+          seenRunning = true
+        }
+        // Only mark done if we actually witnessed the pipeline running, then stopping
+        if (data.status === 'idle' && seenRunning) {
           clearInterval(interval)
           setDone(true)
           setRunning(false)
