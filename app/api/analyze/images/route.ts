@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 import prisma from '@/lib/db'
 import { analyzeBatch } from '@/lib/vision-analyzer'
 import { resolveAnthropicClient } from '@/lib/claude-cli-auth'
