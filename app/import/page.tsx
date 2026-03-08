@@ -71,7 +71,7 @@ const BOOKMARKLET_SCRIPT = `(async function(){
   var source=isLikes?'like':'bookmark';
   var label=isLikes?'likes':'bookmarks';
   function showToast(msg,bg){
-    var t=document.createElement('div');t.innerHTML=msg;
+    var t=document.createElement('div');t.textContent=msg;
     Object.assign(t.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',
       zIndex:'2147483647',padding:'10px 18px',background:bg||'#1e1b4b',color:'#fff',
       border:'1px solid rgba(255,255,255,0.15)',borderRadius:'8px',

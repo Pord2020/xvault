@@ -28,11 +28,6 @@ const ANTHROPIC_MODELS = [
   { value: 'claude-opus-4-6', label: 'Opus 4.6', description: 'Most Capable' },
 ]
 
-const OPENAI_MODELS = [
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast & Cheap' },
-  { value: 'gpt-4o', label: 'GPT-4o', description: 'Smart & Balanced' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Powerful' },
-]
 
 interface Toast {
   type: 'success' | 'error'
@@ -103,7 +98,7 @@ function ApiKeyField({
 }: {
   label: string
   placeholder: string
-  fieldKey: 'anthropicApiKey' | 'openaiApiKey'
+  fieldKey: 'anthropicApiKey'
   hint: string
   docHref: string
   onToast: (t: Toast) => void
@@ -122,7 +117,7 @@ function ApiKeyField({
     fetch('/api/settings')
       .then((r) => r.json())
       .then((d: Record<string, unknown>) => {
-        const hasKey = d[fieldKey === 'anthropicApiKey' ? 'hasAnthropicKey' : 'hasOpenaiKey']
+        const hasKey = d['hasAnthropicKey']
         const masked = d[fieldKey] as string | null
         if (hasKey && masked) setSavedMasked(masked)
       })
@@ -301,7 +296,7 @@ function ModelSelector({
   onToast,
 }: {
   models: { value: string; label: string; description: string }[]
-  settingKey: 'anthropicModel' | 'openaiModel'
+  settingKey: 'anthropicModel'
   defaultValue: string
   onToast: (t: Toast) => void
 }) {
@@ -446,10 +441,10 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
       <div className="space-y-5">
         <div>
           <ApiKeyField
-            label="Anthropic (Claude) — Recommended"
+            label="Anthropic (Claude)"
             placeholder="sk-ant-api03-..."
             fieldKey="anthropicApiKey"
-            hint="Used for AI categorization and search."
+            hint="Used for AI categorization, search, and image analysis."
             docHref="https://console.anthropic.com"
             onToast={onToast}
             testProvider="anthropic"
@@ -462,25 +457,8 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
           />
           <p className="text-xs text-zinc-500 mt-1.5">Applies to all AI operations — API key <strong className="text-zinc-400 font-medium">and Claude CLI</strong></p>
         </div>
-        <div className="border-t border-zinc-800" />
-        <div>
-          <ApiKeyField
-            label="OpenAI — Alternative"
-            placeholder="sk-proj-..."
-            fieldKey="openaiApiKey"
-            hint="Fallback if no Claude key is set."
-            docHref="https://platform.openai.com/api-keys"
-            onToast={onToast}
-          />
-          <ModelSelector
-            models={OPENAI_MODELS}
-            settingKey="openaiModel"
-            defaultValue="gpt-4o-mini"
-            onToast={onToast}
-          />
-        </div>
       </div>
-      <p className="text-xs text-zinc-600 mt-4">Keys are stored locally and never sent to any third party.</p>
+      <p className="text-xs text-zinc-600 mt-4">Keys are stored in plaintext in your local SQLite database (<code className="font-mono">prisma/dev.db</code>). Do not expose the database file.</p>
     </Section>
   )
 }
