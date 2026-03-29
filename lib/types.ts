@@ -37,6 +37,16 @@ export interface Category {
   bookmarkCount: number
 }
 
+export interface Collection {
+  id: string
+  name: string
+  description: string | null
+  color: string
+  emoji: string
+  createdAt: string
+  bookmarkCount: number
+}
+
 export interface StatsResponse {
   totalBookmarks: number
   totalCategories: number

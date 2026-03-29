@@ -16,7 +16,6 @@ import {
   ChevronDown,
   Zap,
   Copy,
-  Coffee,
   Terminal,
   Loader2,
   X,
@@ -135,7 +134,7 @@ function ApiKeyField({
 
   async function handleSave() {
     if (!key.trim()) {
-      onToast({ type: 'error', message: 'Please enter an API key' })
+      onToast({ type: 'error', message: 'Por favor ingresa una clave API' })
       return
     }
     setSaving(true)
@@ -148,17 +147,17 @@ function ApiKeyField({
       })
       if (!res.ok) {
         const data = await res.json() as { error?: string }
-        throw new Error(data.error ?? 'Failed to save')
+        throw new Error(data.error ?? 'Error al guardar')
       }
       setSavedMasked(key.trim().slice(0, 6) + '••••••••' + key.trim().slice(-4))
       setKey('')
       // Auto-test after save
       if (testProvider) void handleTest()
-      else onToast({ type: 'success', message: `${label} saved successfully` })
+      else onToast({ type: 'success', message: `${label} guardada correctamente` })
     } catch (err) {
       onToast({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Failed to save API key',
+        message: err instanceof Error ? err.message : 'Error al guardar la clave API',
       })
     } finally {
       setSaving(false)
@@ -175,13 +174,13 @@ function ApiKeyField({
       })
       if (!res.ok) {
         const data = await res.json() as { error?: string }
-        throw new Error(data.error ?? 'Failed to remove')
+        throw new Error(data.error ?? 'Error al eliminar')
       }
       setSavedMasked(null)
       setTestState('idle')
-      onToast({ type: 'success', message: `${label} removed` })
+      onToast({ type: 'success', message: `${label} eliminada` })
     } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to remove key' })
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Error al eliminar la clave' })
     } finally {
       setRemoving(false)
     }
@@ -200,14 +199,14 @@ function ApiKeyField({
       const data = await res.json() as { working: boolean; error?: string }
       if (data.working) {
         setTestState('ok')
-        onToast({ type: 'success', message: `${label} is working` })
+        onToast({ type: 'success', message: `${label} está funcionando` })
       } else {
         setTestState('fail')
-        setTestError(data.error ?? 'Key test failed')
+        setTestError(data.error ?? 'La prueba de clave falló')
       }
     } catch {
       setTestState('fail')
-      setTestError('Connection error')
+      setTestError('Error de conexión')
     }
   }
 
@@ -218,7 +217,7 @@ function ApiKeyField({
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           {savedMasked && (
             <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg min-w-0 overflow-hidden">
-              <Check size={11} className="shrink-0" /> <span className="shrink-0">Saved:</span> <span className="font-mono truncate">{savedMasked}</span>
+              <Check size={11} className="shrink-0" /> <span className="shrink-0">Guardada:</span> <span className="font-mono truncate">{savedMasked}</span>
             </span>
           )}
           {savedMasked && (
@@ -226,9 +225,9 @@ function ApiKeyField({
               onClick={() => void handleRemove()}
               disabled={removing}
               className="shrink-0 text-xs text-red-500/70 hover:text-red-400 transition-colors disabled:opacity-50"
-              title="Remove saved key"
+              title="Eliminar clave guardada"
             >
-              {removing ? 'Removing…' : 'Remove'}
+              {removing ? 'Eliminando…' : 'Eliminar'}
             </button>
           )}
           {testProvider && savedMasked && testState === 'idle' && (
@@ -236,17 +235,17 @@ function ApiKeyField({
               onClick={() => void handleTest()}
               className="shrink-0 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
-              Test
+              Probar
             </button>
           )}
           {testState === 'testing' && (
             <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
-              <Loader2 size={11} className="animate-spin" /> Testing…
+              <Loader2 size={11} className="animate-spin" /> Probando…
             </span>
           )}
           {testState === 'ok' && (
             <span className="flex items-center gap-1 text-xs text-emerald-400 shrink-0">
-              <Check size={11} /> Working
+              <Check size={11} /> Funcionando
             </span>
           )}
           {testState === 'fail' && (
@@ -263,14 +262,14 @@ function ApiKeyField({
             value={key}
             onChange={(e) => setKey(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void handleSave()}
-            placeholder={savedMasked ? 'Enter new key to replace…' : placeholder}
+            placeholder={savedMasked ? 'Ingresa una nueva clave para reemplazar…' : placeholder}
             className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all duration-200 pr-10 font-mono"
           />
           <button
             type="button"
             onClick={() => setShowKey((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
-            aria-label={showKey ? 'Hide key' : 'Show key'}
+            aria-label={showKey ? 'Ocultar clave' : 'Mostrar clave'}
           >
             {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
@@ -280,7 +279,7 @@ function ApiKeyField({
           disabled={saving}
           className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors shrink-0"
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Guardando…' : 'Guardar'}
         </button>
       </div>
       <div className="flex items-center justify-between">
@@ -291,7 +290,7 @@ function ApiKeyField({
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-400 transition-colors"
         >
-          Get key <ExternalLink size={11} />
+          Obtener clave <ExternalLink size={11} />
         </a>
       </div>
     </div>
@@ -331,7 +330,7 @@ function ModelSelector({
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch {
-      onToast({ type: 'error', message: 'Failed to save model preference' })
+      onToast({ type: 'error', message: 'Error al guardar la preferencia de modelo' })
     }
   }
 
@@ -340,7 +339,7 @@ function ModelSelector({
   return (
     <>
       <div className="flex items-center gap-2 mt-2.5">
-        <span className="text-xs text-zinc-500 shrink-0">Model:</span>
+        <span className="text-xs text-zinc-500 shrink-0">Modelo:</span>
         <div className="relative flex-1">
           <select
             value={value}
@@ -357,7 +356,7 @@ function ModelSelector({
         </div>
         {saved && (
           <span className="flex items-center gap-1 text-xs text-emerald-400 shrink-0">
-            <Check size={12} /> Saved
+            <Check size={12} /> Guardado
           </span>
         )}
         {!saved && selected && (
@@ -366,7 +365,7 @@ function ModelSelector({
       </div>
       {value === 'claude-opus-4-6' && (
         <p className="text-xs text-amber-500/80 mt-1.5">
-          Opus is slow with 20 parallel workers — consider Sonnet or Haiku for faster bulk categorization.
+          Opus es lento con 20 trabajadores en paralelo — considera Sonnet o Haiku para categorización masiva más rápida.
         </p>
       )}
     </>
@@ -400,10 +399,10 @@ function ClaudeCliStatusBox() {
         <Check size={15} className="text-emerald-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-emerald-300">
-            Claude CLI detected — no API key needed
+            Claude CLI detectado — no se necesita clave API
           </p>
           <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-            Signed in as <span className="text-zinc-300">{tier}</span> via Claude Code. Siftly will use your subscription automatically. An API key below will take priority if set.
+            Sesión iniciada como <span className="text-zinc-300">{tier}</span> vía Claude Code. Siftly usará tu suscripción automáticamente. Una clave API abajo tendrá prioridad si se configura.
           </p>
         </div>
       </div>
@@ -415,9 +414,9 @@ function ClaudeCliStatusBox() {
       <div className="flex gap-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 mb-5">
         <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-amber-300">Claude CLI session expired</p>
+          <p className="text-sm font-medium text-amber-300">Sesión de Claude CLI expirada</p>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Run <span className="font-mono text-zinc-300">claude</span> in your terminal to refresh the session, then reload this page.
+            Ejecuta <span className="font-mono text-zinc-300">claude</span> en tu terminal para renovar la sesión, luego recarga esta página.
           </p>
         </div>
       </div>
@@ -428,9 +427,9 @@ function ClaudeCliStatusBox() {
     <div className="flex gap-3 p-3.5 rounded-xl bg-zinc-800/60 border border-zinc-700 mb-5">
       <Terminal size={15} className="text-zinc-400 shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-200">No Claude CLI detected</p>
+        <p className="text-sm font-medium text-zinc-200">No se detectó Claude CLI</p>
         <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-          Install Claude Code and sign in to skip the API key entirely, or paste your API key below.
+          Instala Claude Code e inicia sesión para omitir la clave API por completo, o pega tu clave API abajo.
         </p>
       </div>
     </div>
@@ -458,10 +457,10 @@ function CodexCliStatusBox() {
         <Check size={15} className="text-emerald-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-emerald-300">
-            Codex CLI detected — no API key needed
+            Codex CLI detectado — no se necesita clave API
           </p>
           <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-            Signed in as <span className="text-zinc-300">{tier}</span> via Codex CLI. Siftly will use your credentials automatically. An API key below will take priority if set.
+            Sesión iniciada como <span className="text-zinc-300">{tier}</span> vía Codex CLI. Siftly usará tus credenciales automáticamente. Una clave API abajo tendrá prioridad si se configura.
           </p>
         </div>
       </div>
@@ -473,9 +472,9 @@ function CodexCliStatusBox() {
       <div className="flex gap-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 mb-5">
         <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-amber-300">Codex CLI session expired</p>
+          <p className="text-sm font-medium text-amber-300">Sesión de Codex CLI expirada</p>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Run <span className="font-mono text-zinc-300">codex</span> in your terminal to refresh, then reload this page.
+            Ejecuta <span className="font-mono text-zinc-300">codex</span> en tu terminal para renovar, luego recarga esta página.
           </p>
         </div>
       </div>
@@ -486,9 +485,9 @@ function CodexCliStatusBox() {
     <div className="flex gap-3 p-3.5 rounded-xl bg-zinc-800/60 border border-zinc-700 mb-5">
       <Terminal size={15} className="text-zinc-400 shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-200">No Codex CLI detected</p>
+        <p className="text-sm font-medium text-zinc-200">No se detectó Codex CLI</p>
         <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-          Install Codex CLI and sign in to skip the API key entirely, or paste your OpenAI API key below.
+          Instala Codex CLI e inicia sesión para omitir la clave API por completo, o pega tu clave API de OpenAI abajo.
         </p>
       </div>
     </div>
@@ -543,11 +542,11 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: newProvider }),
       })
-      if (!res.ok) throw new Error('Failed to save provider')
-      onToast({ type: 'success', message: `Switched to ${newProvider === 'openai' ? 'OpenAI' : 'Anthropic'}` })
+      if (!res.ok) throw new Error('Error al guardar el proveedor')
+      onToast({ type: 'success', message: `Cambiado a ${newProvider === 'openai' ? 'OpenAI' : 'Anthropic'}` })
     } catch {
       setProvider(prev) // revert on failure
-      onToast({ type: 'error', message: 'Failed to save provider preference' })
+      onToast({ type: 'error', message: 'Error al guardar la preferencia de proveedor' })
     }
   }
 
@@ -556,11 +555,11 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
     return (
       <Section
         icon={Key}
-        title="AI Provider"
-        description="Choose your AI provider and configure keys. CLI auth means no key needed."
+        title="Proveedor de IA"
+        description="Elige tu proveedor de IA y configura las claves. La autenticación CLI no requiere clave."
       >
         <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2 size={14} className="animate-spin" /> Loading settings…
+          <Loader2 size={14} className="animate-spin" /> Cargando configuración…
         </div>
       </Section>
     )
@@ -569,8 +568,8 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
   return (
     <Section
       icon={Key}
-      title="AI Provider"
-      description="Choose your AI provider and configure keys. CLI auth means no key needed."
+      title="Proveedor de IA"
+      description="Elige tu proveedor de IA y configura las claves. La autenticación CLI no requiere clave."
     >
       <ProviderToggle value={provider} onChange={(v) => void handleProviderChange(v)} />
 
@@ -583,7 +582,7 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
                 label="Anthropic (Claude)"
                 placeholder="sk-ant-api03-..."
                 fieldKey="anthropicApiKey"
-                hint="Used for AI categorization, search, and image analysis."
+                hint="Usada para categorización con IA, búsqueda y análisis de imágenes."
                 docHref="https://console.anthropic.com"
                 onToast={onToast}
                 testProvider="anthropic"
@@ -594,7 +593,7 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
                 defaultValue="claude-haiku-4-5-20251001"
                 onToast={onToast}
               />
-              <p className="text-xs text-zinc-500 mt-1.5">Applies to all AI operations — API key <strong className="text-zinc-400 font-medium">and Claude CLI</strong></p>
+              <p className="text-xs text-zinc-500 mt-1.5">Aplica a todas las operaciones de IA — clave API <strong className="text-zinc-400 font-medium">y Claude CLI</strong></p>
             </div>
           </div>
         </>
@@ -607,7 +606,7 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
                 label="OpenAI"
                 placeholder="sk-..."
                 fieldKey="openaiApiKey"
-                hint="Used for AI categorization, search, and image analysis."
+                hint="Usada para categorización con IA, búsqueda y análisis de imágenes."
                 docHref="https://platform.openai.com/api-keys"
                 onToast={onToast}
                 testProvider="openai"
@@ -618,12 +617,12 @@ function ApiKeySection({ onToast }: { onToast: (t: Toast) => void }) {
                 defaultValue="gpt-4.1-mini"
                 onToast={onToast}
               />
-              <p className="text-xs text-zinc-500 mt-1.5">Applies to all AI operations — API key <strong className="text-zinc-400 font-medium">and Codex CLI</strong></p>
+              <p className="text-xs text-zinc-500 mt-1.5">Aplica a todas las operaciones de IA — clave API <strong className="text-zinc-400 font-medium">y Codex CLI</strong></p>
             </div>
           </div>
         </>
       )}
-      <p className="text-xs text-zinc-600 mt-4">Keys are stored in plaintext in your local SQLite database (<code className="font-mono">prisma/dev.db</code>). Do not expose the database file.</p>
+      <p className="text-xs text-zinc-600 mt-4">Las claves se almacenan en texto plano en tu base de datos SQLite local (<code className="font-mono">prisma/dev.db</code>). No expongas el archivo de base de datos.</p>
     </Section>
   )
 }
@@ -659,19 +658,19 @@ function DataSection() {
   return (
     <Section
       icon={Database}
-      title="Data Management"
-      description="Export all your bookmarks and category data for backup or migration."
+      title="Gestión de datos"
+      description="Exporta todos tus bookmarks y datos de categorías para respaldo o migración."
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <ExportButton
-          label="Export as CSV"
+          label="Exportar como CSV"
           href="/api/export?type=csv"
-          description="Spreadsheet-compatible format"
+          description="Formato compatible con hojas de cálculo"
         />
         <ExportButton
-          label="Export as JSON"
+          label="Exportar como JSON"
           href="/api/export?type=json"
-          description="Full data with all fields"
+          description="Datos completos con todos los campos"
         />
       </div>
     </Section>
@@ -689,15 +688,15 @@ function DangerZoneSection({ onToast }: { onToast: (t: Toast) => void }) {
       const res = await fetch('/api/bookmarks', { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json() as { error?: string }
-        throw new Error(data.error ?? 'Failed to clear')
+        throw new Error(data.error ?? 'Error al limpiar')
       }
-      onToast({ type: 'success', message: 'All bookmarks deleted successfully' })
+      onToast({ type: 'success', message: 'Todos los bookmarks eliminados correctamente' })
       setConfirming(false)
       setCleared(true)
       setTimeout(() => setCleared(false), 3000)
       window.dispatchEvent(new CustomEvent('siftly:cleared'))
     } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to clear bookmarks' })
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Error al limpiar los bookmarks' })
     } finally {
       setClearing(false)
     }
@@ -706,19 +705,19 @@ function DangerZoneSection({ onToast }: { onToast: (t: Toast) => void }) {
   return (
     <Section
       icon={Shield}
-      title="Danger Zone"
-      description="Irreversible actions that affect all your data."
+      title="Zona de peligro"
+      description="Acciones irreversibles que afectan todos tus datos."
       variant="danger"
     >
       <div className="flex items-center justify-between p-4 rounded-xl bg-red-900/20 border border-red-800/40">
         <div>
-          <p className="text-sm font-medium text-zinc-300">Clear all bookmarks</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Permanently delete all imported bookmarks</p>
+          <p className="text-sm font-medium text-zinc-300">Limpiar todos los bookmarks</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Eliminar permanentemente todos los bookmarks importados</p>
         </div>
         {cleared ? (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
             <Check size={14} />
-            Cleared
+            Limpiado
           </div>
         ) : !confirming ? (
           <button
@@ -726,17 +725,17 @@ function DangerZoneSection({ onToast }: { onToast: (t: Toast) => void }) {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 bg-red-800/30 hover:bg-red-700/40 border border-red-700/50 hover:border-red-600/60 transition-all"
           >
             <Trash2 size={14} />
-            Clear all
+            Limpiar todo
           </button>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400 mr-1">Are you sure?</span>
+            <span className="text-xs text-zinc-400 mr-1">¿Estás seguro?</span>
             <button
               onClick={() => setConfirming(false)}
               disabled={clearing}
               className="px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               onClick={() => void handleClearAll()}
@@ -744,7 +743,7 @@ function DangerZoneSection({ onToast }: { onToast: (t: Toast) => void }) {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Trash2 size={12} />
-              {clearing ? 'Deleting…' : 'Yes, delete all'}
+              {clearing ? 'Eliminando…' : 'Sí, eliminar todo'}
             </button>
           </div>
         )}
@@ -761,69 +760,28 @@ const TECH_STACK = [
   { label: 'Tailwind CSS', color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
 ]
 
-const DONATION_ADDRESS = '0xcF10B967a9e422753812004Cd59990f62E360760'
-
 function AboutSection() {
-  const [copied, setCopied] = useState(false)
-
-  function copyAddress() {
-    void navigator.clipboard.writeText(DONATION_ADDRESS).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
   return (
-    <Section icon={Info} title="About Siftly" description="Self-hosted Twitter bookmark manager">
+    <Section icon={Info} title="Acerca de XVault" description="Gestor de bookmarks de Twitter autoalojado">
       <p className="text-sm text-zinc-400 leading-relaxed mb-5">
-        <strong className="text-zinc-100 font-semibold">Siftly</strong> is a self-hosted app for
-        organizing your Twitter/X bookmarks. Use the built-in bookmarklet or console script to import,
-        then run the 4-stage AI pipeline to analyze images, extract entities, generate semantic tags, and
-        auto-categorize — then explore connections through the interactive mindmap.
+        XVault es una app autoalojada para organizar tus bookmarks de X/Twitter. Usa el bookmarklet o el script de consola para importar, luego ejecuta el pipeline de IA para analizar imágenes, extraer entidades, generar etiquetas semánticas y auto-categorizar.
       </p>
 
-      {/* Builder + support row */}
+      {/* Builder row */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Built by */}
         <a
-          href="https://x.com/viperr"
+          href="https://x.com/pato_enes_"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-600 hover:bg-zinc-800 transition-all group flex-1"
         >
           <span className="text-base leading-none">𝕏</span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">@viperr</p>
-            <p className="text-[11px] text-zinc-600">Built &amp; open-sourced by</p>
+            <p className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">@pato_enes_</p>
+            <p className="text-[11px] text-zinc-600">Desarrollado por</p>
           </div>
           <ExternalLink size={12} className="text-zinc-600 group-hover:text-zinc-400 transition-colors ml-auto shrink-0" />
         </a>
-
-        {/* Donate */}
-        <div className="flex-1 px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Coffee size={13} className="text-amber-400 shrink-0" />
-            <span className="text-xs font-semibold text-amber-300">Support development</span>
-          </div>
-          <p className="text-[11px] text-zinc-500 mb-2.5 leading-relaxed">
-            If Siftly saves you time, consider leaving a tip
-          </p>
-          <button
-            onClick={copyAddress}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-zinc-900/60 border border-amber-500/20 hover:border-amber-500/50 hover:bg-zinc-900 transition-all group"
-          >
-            <span className="text-[10px] font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors truncate">
-              {DONATION_ADDRESS}
-            </span>
-            {copied
-              ? <Check size={13} className="text-emerald-400 shrink-0" />
-              : <Copy size={13} className="text-zinc-600 group-hover:text-amber-400 transition-colors shrink-0" />
-            }
-          </button>
-          {copied && (
-            <p className="text-[10px] text-emerald-400 mt-1.5 text-center">Address copied!</p>
-          )}
-        </div>
       </div>
     </Section>
   )
@@ -848,7 +806,7 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
 
   async function handleSave() {
     if (!clientId.trim()) {
-      onToast({ type: 'error', message: 'Client ID is required' })
+      onToast({ type: 'error', message: 'El Client ID es obligatorio' })
       return
     }
     setSaving(true)
@@ -862,15 +820,15 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string }
-        throw new Error(data.error ?? 'Failed to save')
+        throw new Error(data.error ?? 'Error al guardar')
       }
       setSavedId(clientId.trim().slice(0, 6) + '••••' + clientId.trim().slice(-4))
       if (clientSecret.trim()) setSavedSecret(clientSecret.trim().slice(0, 4) + '••••')
       setClientId('')
       setClientSecret('')
-      onToast({ type: 'success', message: 'X OAuth credentials saved' })
+      onToast({ type: 'success', message: 'Credenciales X OAuth guardadas' })
     } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save' })
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Error al guardar' })
     } finally {
       setSaving(false)
     }
@@ -890,9 +848,9 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
       })
       setSavedId(null)
       setSavedSecret(null)
-      onToast({ type: 'success', message: 'X OAuth credentials removed' })
+      onToast({ type: 'success', message: 'Credenciales X OAuth eliminadas' })
     } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to remove' })
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Error al eliminar' })
     }
   }
 
@@ -904,7 +862,7 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
     <Section
       icon={Shield}
       title="X (Twitter) OAuth 2.0"
-      description="Connect your X account to import bookmarks using the official API."
+      description="Conecta tu cuenta de X para importar bookmarks usando la API oficial."
     >
       <div className="space-y-4">
         {savedId ? (
@@ -918,7 +876,7 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
                   {savedSecret && (
                     <>
                       <span className="text-zinc-600 mx-2">·</span>
-                      <span className="text-emerald-300">Secret: </span>
+                      <span className="text-emerald-300">Secreto: </span>
                       <span className="text-zinc-400 font-mono text-xs">{savedSecret}</span>
                     </>
                   )}
@@ -927,7 +885,7 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
               <button
                 onClick={handleRemove}
                 className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                title="Remove X OAuth credentials"
+                title="Eliminar credenciales X OAuth"
               >
                 <Trash2 size={14} />
               </button>
@@ -938,14 +896,14 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="Client ID"
+                placeholder="Client ID (ID de cliente)"
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50 font-mono"
               />
               <input
                 type="password"
-                placeholder="Client Secret (optional for public clients)"
+                placeholder="Client Secret (opcional para clientes públicos)"
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50 font-mono"
@@ -957,20 +915,20 @@ function XOAuthSection({ onToast }: { onToast: (t: Toast) => void }) {
               className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
-              {saving ? 'Saving...' : 'Save X OAuth Credentials'}
+              {saving ? 'Guardando...' : 'Guardar credenciales X OAuth'}
             </button>
           </div>
         )}
 
         <div className="text-xs text-zinc-600 space-y-1">
           <p>
-            Get credentials from the{' '}
+            Obtén tus credenciales en el{' '}
             <a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-              X Developer Portal
+              Portal de Desarrolladores de X
             </a>
           </p>
           <p>
-            Callback URL: <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-zinc-400">{callbackUrl}</code>
+            URL de callback: <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-zinc-400">{callbackUrl}</code>
           </p>
         </div>
       </div>

@@ -39,9 +39,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const mediaType = searchParams.get('mediaType')?.trim() ?? ''
   const uncategorized = searchParams.get('uncategorized') === 'true'
   const sortParam = searchParams.get('sort')?.trim() ?? 'newest'
+  const cursor = searchParams.get('cursor')?.trim() ?? ''
   const page = parseIntParam(searchParams.get('page'), DEFAULT_PAGE)
   const limit = Math.min(parseIntParam(searchParams.get('limit'), DEFAULT_LIMIT), MAX_LIMIT)
-  const skip = (page - 1) * limit
+  const skip = cursor ? undefined : (page - 1) * limit
   const orderDir = sortParam === 'oldest' ? 'asc' : 'desc'
 
   const where: Record<string, unknown> = {}
@@ -74,7 +75,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const [bookmarks, total] = await Promise.all([
       prisma.bookmark.findMany({
         where,
-        skip,
+        ...(cursor
+          ? { cursor: { id: cursor }, skip: 1 }
+          : { skip }),
         take: limit,
         orderBy: [{ tweetCreatedAt: orderDir }, { importedAt: orderDir }],
         include: {
@@ -120,11 +123,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       })),
     }))
 
+    const nextCursor = bookmarks.length > 0 ? bookmarks[bookmarks.length - 1].id : null
+
     return NextResponse.json({
       bookmarks: formatted,
       total,
       page,
       limit,
+      nextCursor,
     })
   } catch (err) {
     console.error('Bookmarks fetch error:', err)

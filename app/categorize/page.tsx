@@ -26,29 +26,29 @@ interface CategorizeStatus {
 
 const STAGE_INFO: Record<NonNullable<Stage>, { label: string; icon: React.ReactNode; desc: string }> = {
   vision: {
-    label: 'Analyzing images',
+    label: 'Analizando imágenes',
     icon: <Eye size={14} />,
-    desc: 'Extracting text, objects, and context from photos, GIFs, and videos',
+    desc: 'Extrayendo texto, objetos y contexto de fotos, GIFs y videos',
   },
   entities: {
-    label: 'Extracting entities',
+    label: 'Extrayendo entidades',
     icon: <Tag size={14} />,
-    desc: 'Mining hashtags, URLs, and tool mentions from tweet data',
+    desc: 'Minando hashtags, URLs y menciones de herramientas desde los datos del tweet',
   },
   enrichment: {
-    label: 'Generating semantic tags',
+    label: 'Generando etiquetas semánticas',
     icon: <Brain size={14} />,
-    desc: 'Creating 30-50 searchable tags per bookmark for AI search',
+    desc: 'Creando 30-50 etiquetas buscables por bookmark para búsqueda con IA',
   },
   categorize: {
-    label: 'Categorizing',
+    label: 'Categorizando',
     icon: <Layers size={14} />,
-    desc: 'Assigning each bookmark to the most relevant categories',
+    desc: 'Asignando cada bookmark a las categorías más relevantes',
   },
   parallel: {
-    label: 'Processing all stages in parallel',
+    label: 'Procesando todas las etapas en paralelo',
     icon: <Sparkles size={14} />,
-    desc: 'Vision, enrichment, and categorization running concurrently across 20 workers',
+    desc: 'Visión, enriquecimiento y categorización ejecutándose en simultáneo con 20 trabajadores',
   },
 }
 
@@ -137,11 +137,11 @@ export default function CategorizePage() {
     <div className="p-8 max-w-xl mx-auto">
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-4">
-          <Sparkles size={12} /> AI Categorization
+          <Sparkles size={12} /> Categorización IA
         </div>
-        <h1 className="text-2xl font-bold text-zinc-100">Categorize Bookmarks</h1>
+        <h1 className="text-2xl font-bold text-zinc-100">Categorizar Bookmarks</h1>
         <p className="text-zinc-400 mt-1 text-sm">
-          4-stage AI pipeline: vision analysis → entity extraction → semantic tagging → categorization.
+          Pipeline IA de 4 etapas: análisis visual → extracción de entidades → etiquetado semántico → categorización.
         </p>
       </div>
 
@@ -154,8 +154,7 @@ export default function CategorizePage() {
               </p>
             )}
             <p className="text-sm text-zinc-400 leading-relaxed">
-              Analyzes images for text and context, mines tweet entities for free, generates
-              semantic search tags, then categorizes — all automatically.
+              Analiza imágenes para texto y contexto, extrae entidades de tweets, genera etiquetas de búsqueda semántica y categoriza — todo automáticamente.
             </p>
             <div className="space-y-2">
               <button
@@ -163,13 +162,13 @@ export default function CategorizePage() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
               >
                 <Sparkles size={16} />
-                Start AI Categorization
+                Iniciar categorización IA
               </button>
               <button
                 onClick={() => void startCategorization(true)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm font-medium transition-colors border border-zinc-700"
               >
-                Re-run everything (force all)
+                Re-procesar todo (forzar)
               </button>
             </div>
           </>
@@ -193,10 +192,10 @@ export default function CategorizePage() {
             {status?.stageCounts && (
               <div className="space-y-1.5">
                 {[
-                  { key: 'visionTagged', label: 'images analyzed', icon: <Eye size={13} />, active: status.stage === 'vision' || status.stage === 'parallel' },
-                  { key: 'entitiesExtracted', label: 'entities extracted', icon: <Tag size={13} />, active: status.stage === 'entities' },
-                  { key: 'enriched', label: 'bookmarks enriched', icon: <Brain size={13} />, active: status.stage === 'enrichment' || status.stage === 'parallel' },
-                  { key: 'categorized', label: 'categorized', icon: <Layers size={13} />, active: status.stage === 'categorize' || status.stage === 'parallel' },
+                  { key: 'visionTagged', label: 'imágenes analizadas', icon: <Eye size={13} />, active: status.stage === 'vision' || status.stage === 'parallel' },
+                  { key: 'entitiesExtracted', label: 'entidades extraídas', icon: <Tag size={13} />, active: status.stage === 'entities' },
+                  { key: 'enriched', label: 'bookmarks enriquecidos', icon: <Brain size={13} />, active: status.stage === 'enrichment' || status.stage === 'parallel' },
+                  { key: 'categorized', label: 'categorizados', icon: <Layers size={13} />, active: status.stage === 'categorize' || status.stage === 'parallel' },
                 ].map(({ key, label, icon, active }) => {
                   const count = status.stageCounts[key as keyof StageCounts]
                   const total = key === 'categorized' ? status.total : null
@@ -208,7 +207,7 @@ export default function CategorizePage() {
                       </span>
                       <span className="text-zinc-500 text-sm">
                         {label}
-                        {total != null && total > 0 ? <span className="text-zinc-600"> — {total - count} remaining</span> : null}
+                        {total != null && total > 0 ? <span className="text-zinc-600"> — {total - count} restantes</span> : null}
                       </span>
                       {active && <Loader2 size={12} className="text-indigo-400 animate-spin ml-auto shrink-0" />}
                       {!active && count > 0 && <CheckCircle size={12} className="text-emerald-500 ml-auto shrink-0" />}
@@ -225,7 +224,7 @@ export default function CategorizePage() {
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-red-400 text-sm font-medium transition-colors border border-red-500/20"
             >
               <StopCircle size={15} />
-              {stopping ? 'Stopping…' : 'Stop pipeline'}
+              {stopping ? 'Deteniendo…' : 'Detener pipeline'}
             </button>
 
             {/* Last error warning */}
@@ -259,12 +258,12 @@ export default function CategorizePage() {
               <CheckCircle size={32} className="text-emerald-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-zinc-100">Pipeline Complete!</p>
+              <p className="text-xl font-bold text-zinc-100">¡Pipeline completo!</p>
               {status?.stageCounts && (
                 <p className="text-zinc-500 text-sm mt-1">
-                  {status.stageCounts.visionTagged} images analyzed ·{' '}
-                  {status.stageCounts.enriched} bookmarks enriched ·{' '}
-                  {status.stageCounts.categorized} categorized
+                  {status.stageCounts.visionTagged} imágenes analizadas ·{' '}
+                  {status.stageCounts.enriched} bookmarks enriquecidos ·{' '}
+                  {status.stageCounts.categorized} categorizados
                 </p>
               )}
             </div>
@@ -278,13 +277,13 @@ export default function CategorizePage() {
                 href="/bookmarks"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
               >
-                View bookmarks <ChevronRight size={14} />
+                Ver bookmarks <ChevronRight size={14} />
               </Link>
               <button
                 onClick={() => { setDone(false); setStatus(null) }}
                 className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700"
               >
-                Run again
+                Ejecutar de nuevo
               </button>
             </div>
           </div>

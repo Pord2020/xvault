@@ -33,7 +33,7 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
-      setError('Category name is required')
+      setError('El nombre de la categoría es requerido')
       return
     }
     setError('')
@@ -46,14 +46,14 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
         body: JSON.stringify({ name: name.trim(), color, description: description.trim() || undefined }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create category')
+      if (!res.ok) throw new Error(data.error ?? 'Error al crear la categoría')
       onAdd(data.category)
       setName('')
       setDescription('')
       setColor(PRESET_COLORS[0])
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
       setLoading(false)
     }
@@ -71,9 +71,9 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl shadow-black/50 focus:outline-none animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <Dialog.Title className="text-lg font-semibold text-zinc-100">New Category</Dialog.Title>
+              <Dialog.Title className="text-lg font-semibold text-zinc-100">Nueva categoría</Dialog.Title>
               <Dialog.Description className="text-sm text-zinc-500 mt-0.5">
-                Create a category to organize your bookmarks
+                Crea una categoría para organizar tus bookmarks
               </Dialog.Description>
             </div>
             <button
@@ -87,13 +87,13 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                Name <span className="text-red-400">*</span>
+                Nombre <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Machine Learning"
+                placeholder="ej. Machine Learning"
                 autoFocus
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all duration-200"
               />
@@ -125,13 +125,13 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
 
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                Description{' '}
-                <span className="text-zinc-600 font-normal">(optional)</span>
+                Descripción{' '}
+                <span className="text-zinc-600 font-normal">(opcional)</span>
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this category..."
+                placeholder="Breve descripción de esta categoría..."
                 rows={3}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all duration-200 resize-none"
               />
@@ -150,14 +150,14 @@ function AddCategoryModal({ open, onClose, onAdd }: AddCategoryModalProps) {
                 onClick={handleClose}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 bg-zinc-800 hover:bg-zinc-700 transition-colors border border-zinc-700"
               >
-                Cancel
+                Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Creating...' : 'Create Category'}
+                {loading ? 'Creando...' : 'Crear categoría'}
               </button>
             </div>
           </form>
@@ -192,7 +192,7 @@ function CategoryDisplayCard({ category }: CategoryDisplayCardProps) {
         {category.description ? (
           <p className="text-sm text-zinc-400 leading-relaxed line-clamp-2 mb-4">{category.description}</p>
         ) : (
-          <p className="text-sm text-zinc-600 italic mb-4">No description</p>
+          <p className="text-sm text-zinc-600 italic mb-4">Sin descripción</p>
         )}
 
         <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ function CategoryDisplayCard({ category }: CategoryDisplayCardProps) {
             href={`/categories/${category.slug}`}
             className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-indigo-400 transition-colors group-hover:text-zinc-400 font-medium"
           >
-            View bookmarks
+            Ver bookmarks
             <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -258,9 +258,9 @@ export default function CategoriesPage() {
       {/* Page Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-1">Organization</p>
+          <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-1">Organización</p>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-zinc-100">Categories</h1>
+            <h1 className="text-2xl font-bold text-zinc-100">Categorías</h1>
             {!loading && categories.length > 0 && (
               <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs font-medium">
                 {categories.length}
@@ -269,10 +269,10 @@ export default function CategoriesPage() {
           </div>
           <p className="text-zinc-400 mt-1 text-sm">
             {loading
-              ? 'Loading your categories...'
+              ? 'Cargando tus categorías...'
               : categories.length > 0
-              ? `${totalBookmarks.toLocaleString()} bookmarks across ${categories.length} categories`
-              : 'Organize your bookmarks by topic'}
+              ? `${totalBookmarks.toLocaleString()} bookmarks en ${categories.length} categorías`
+              : 'Organiza tus bookmarks por tema'}
           </p>
         </div>
         <button
@@ -280,7 +280,7 @@ export default function CategoriesPage() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
         >
           <Plus size={16} />
-          Add Category
+          Agregar categoría
         </button>
       </div>
 
@@ -299,16 +299,16 @@ export default function CategoriesPage() {
           <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
             <Folder size={28} className="text-zinc-700" />
           </div>
-          <h3 className="text-lg font-semibold text-zinc-300 mb-2">No categories yet</h3>
+          <h3 className="text-lg font-semibold text-zinc-300 mb-2">Sin categorías aún</h3>
           <p className="text-zinc-500 text-sm mb-6 max-w-xs leading-relaxed">
-            Create your first category to start organizing your bookmarks by topic.
+            Crea tu primera categoría para empezar a organizar tus bookmarks por tema.
           </p>
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors"
           >
             <Plus size={15} />
-            Create first category
+            Crear primera categoría
           </button>
         </div>
       )}
@@ -327,11 +327,11 @@ export default function CategoriesPage() {
         <div className="mt-8 flex items-center gap-3 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
           <Tag size={15} className="text-indigo-400 shrink-0" />
           <p className="text-sm text-zinc-500">
-            Tip: Use{' '}
+            Tip: Usa{' '}
             <Link href="/categorize" className="text-indigo-400 hover:text-indigo-300 transition-colors">
-              AI Categorize
+              Categorización IA
             </Link>{' '}
-            to automatically assign bookmarks to your categories.
+            para asignar automáticamente los bookmarks a tus categorías.
           </p>
         </div>
       )}

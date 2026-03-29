@@ -71,6 +71,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     data: { totalCount: parsedBookmarks.length },
   })
 
+  // ── GitHub repo detection ──────────────────────────────────────────────────
+  const GITHUB_RE = /github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/i
+
+  function extractGithubRepo(text: string, urls: string[]): string | null {
+    const sources = [...urls, text]
+    for (const src of sources) {
+      const m = src.match(GITHUB_RE)
+      if (m) {
+        const owner = m[1], repo = m[2].replace(/[^a-zA-Z0-9_.-]/g, '')
+        if (owner && repo && owner !== 'sponsors' && owner !== 'orgs') {
+          return JSON.stringify({ fullName: `${owner}/${repo}`, stars: 0, language: null, isArchived: false })
+        }
+      }
+    }
+    return null
+  }
+
   let importedCount = 0
   let skippedCount = 0
 
@@ -86,6 +103,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         continue
       }
 
+      const repoMeta = extractGithubRepo(bookmark.text, bookmark.urls)
+
       const created = await prisma.bookmark.create({
         data: {
           tweetId: bookmark.tweetId,
@@ -95,6 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           tweetCreatedAt: bookmark.tweetCreatedAt,
           rawJson: bookmark.rawJson,
           source,
+          ...(repoMeta ? { repoMeta } : {}),
         },
       })
 

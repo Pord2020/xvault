@@ -34,7 +34,7 @@ function Legend({ categories }: { categories: CategoryLegendItem[] }) {
 
   return (
     <div className="absolute top-4 left-4 z-10 bg-zinc-900/90 backdrop-blur-sm border border-zinc-800 rounded-xl p-4 max-w-52">
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Categories</p>
+      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Categorías</p>
       <div className="space-y-2">
         {categories.map((cat) => (
           <div key={cat.slug} className="flex items-center gap-2">
@@ -43,7 +43,7 @@ function Legend({ categories }: { categories: CategoryLegendItem[] }) {
           </div>
         ))}
       </div>
-      <p className="text-xs text-zinc-600 mt-3">Click a category to expand</p>
+      <p className="text-xs text-zinc-600 mt-3">Haz clic en una categoría para expandir</p>
     </div>
   )
 }
@@ -67,11 +67,11 @@ interface CategorizeStatus {
 }
 
 const STAGE_LABELS: Record<NonNullable<CategorizeStage>, string> = {
-  entities: 'Extracting entities…',
-  vision: 'Analyzing images…',
-  enrichment: 'Generating semantic tags…',
-  categorize: 'Categorizing bookmarks…',
-  parallel: 'Processing bookmarks in parallel…',
+  entities: 'Extrayendo entidades…',
+  vision: 'Analizando imágenes…',
+  enrichment: 'Generando etiquetas semánticas…',
+  categorize: 'Categorizando bookmarks…',
+  parallel: 'Procesando bookmarks en paralelo…',
 }
 
 function UncategorizedState({ totalBookmarks }: { totalBookmarks: number }) {
@@ -102,11 +102,11 @@ function UncategorizedState({ totalBookmarks }: { totalBookmarks: number }) {
       const res = await fetch('/api/categorize', { method: 'POST' })
       if (!res.ok) {
         const d = await res.json() as { error?: string }
-        throw new Error(d.error ?? 'Failed to start')
+        throw new Error(d.error ?? 'Error al iniciar')
       }
       pollStatus()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start')
+      setError(err instanceof Error ? err.message : 'Error al iniciar')
       setRunning(false)
     }
   }
@@ -135,14 +135,14 @@ function UncategorizedState({ totalBookmarks }: { totalBookmarks: number }) {
     ? Math.round((status.done / status.total) * 100)
     : null
 
-  const stageLabel = status?.stage ? STAGE_LABELS[status.stage] : 'Starting…'
+  const stageLabel = status?.stage ? STAGE_LABELS[status.stage] : 'Iniciando…'
 
   if (done) {
     return (
       <div className="flex flex-col items-center gap-3">
         <CheckCircle size={36} className="text-emerald-400" />
-        <p className="text-zinc-200 font-semibold">Categorization complete!</p>
-        <p className="text-zinc-500 text-sm">Loading your mindmap…</p>
+        <p className="text-zinc-200 font-semibold">¡Categorización completa!</p>
+        <p className="text-zinc-500 text-sm">Cargando tu mindmap…</p>
         <Loader2 size={18} className="text-indigo-400 animate-spin mt-1" />
       </div>
     )
@@ -172,10 +172,10 @@ function UncategorizedState({ totalBookmarks }: { totalBookmarks: number }) {
         <Sparkles size={28} className="text-indigo-400" />
       </div>
       <div>
-        <p className="text-xl font-semibold text-zinc-100">Bookmarks not categorized yet</p>
+        <p className="text-xl font-semibold text-zinc-100">Bookmarks sin categorizar aún</p>
         <p className="text-zinc-500 text-sm mt-1.5 leading-relaxed">
-          You have <span className="text-zinc-300 font-medium">{totalBookmarks.toLocaleString()}</span> bookmarks imported.
-          Run AI categorization to populate the mindmap.
+          Tienes <span className="text-zinc-300 font-medium">{totalBookmarks.toLocaleString()}</span> bookmarks importados.
+          Ejecuta la categorización con IA para poblar el mindmap.
         </p>
       </div>
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -184,7 +184,7 @@ function UncategorizedState({ totalBookmarks }: { totalBookmarks: number }) {
         className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
       >
         <Sparkles size={16} />
-        Start AI Categorization
+        Iniciar categorización con IA
       </button>
     </div>
   )
@@ -239,17 +239,17 @@ function MindmapOverlay({
       const res = await fetch('/api/categorize', { method: 'POST' })
       if (!res.ok) {
         const d = await res.json() as { error?: string }
-        throw new Error(d.error ?? 'Failed to start')
+        throw new Error(d.error ?? 'Error al iniciar')
       }
       pollStatus()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start')
+      setError(err instanceof Error ? err.message : 'Error al iniciar')
       setRunning(false)
     }
   }
 
   const isPipelineRunning = pipeline?.status === 'running' || pipeline?.status === 'stopping'
-  const stageLabel = status?.stage ? STAGE_LABELS[status.stage] : 'Starting…'
+  const stageLabel = status?.stage ? STAGE_LABELS[status.stage] : 'Iniciando…'
   const progress = status?.stage === 'categorize' && status.total > 0
     ? Math.round((status.done / status.total) * 100)
     : null
@@ -260,8 +260,8 @@ function MindmapOverlay({
         {done ? (
           <div className="flex flex-col items-center gap-4">
             <CheckCircle size={44} className="text-emerald-400" />
-            <p className="text-xl font-bold text-zinc-100">Categorization complete!</p>
-            <p className="text-zinc-500 text-sm">Reloading your mindmap…</p>
+            <p className="text-xl font-bold text-zinc-100">¡Categorización completa!</p>
+            <p className="text-zinc-500 text-sm">Recargando tu mindmap…</p>
             <Loader2 size={18} className="text-indigo-400 animate-spin" />
           </div>
         ) : running ? (
@@ -270,7 +270,7 @@ function MindmapOverlay({
               <Loader2 size={32} className="text-indigo-400 animate-spin" />
             </div>
             <div>
-              <p className="text-xl font-bold text-zinc-100">AI Categorization in Progress</p>
+              <p className="text-xl font-bold text-zinc-100">Categorización con IA en progreso</p>
               <p className="text-zinc-400 text-sm mt-1.5">{stageLabel}</p>
               {status?.stage === 'categorize' && status.total > 0 && (
                 <p className="text-zinc-500 text-sm mt-1">
@@ -280,7 +280,7 @@ function MindmapOverlay({
               )}
             </div>
             <p className="text-zinc-600 text-xs">
-              The mindmap will populate automatically when done.
+              El mindmap se llenará automáticamente al terminar.
             </p>
           </div>
         ) : (
@@ -289,10 +289,10 @@ function MindmapOverlay({
               <Sparkles size={28} className="text-indigo-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-zinc-100">Bookmarks Not Categorized Yet</p>
+              <p className="text-xl font-bold text-zinc-100">Bookmarks sin categorizar aún</p>
               <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
-                You have <span className="text-zinc-200 font-semibold">{totalBookmarks.toLocaleString()}</span> bookmarks imported.
-                The mindmap will fill in once AI categorization completes.
+                Tienes <span className="text-zinc-200 font-semibold">{totalBookmarks.toLocaleString()}</span> bookmarks importados.
+                El mindmap se llenará una vez que la categorización con IA se complete.
               </p>
             </div>
             {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -302,14 +302,14 @@ function MindmapOverlay({
                 className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
               >
                 <Sparkles size={16} />
-                Start AI Categorization
+                Iniciar categorización con IA
               </button>
               {isPipelineRunning && (
                 <button
                   onClick={onDismiss}
                   className="text-zinc-600 hover:text-zinc-400 text-sm transition-colors py-1"
                 >
-                  Dismiss and view empty map
+                  Descartar y ver mapa vacío
                 </button>
               )}
             </div>
@@ -331,7 +331,7 @@ export default function MindmapPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/mindmap').then((r) => {
-        if (!r.ok) throw new Error('Failed to load mindmap')
+        if (!r.ok) throw new Error('Error al cargar el mindmap')
         return r.json() as Promise<MindmapData>
       }),
       fetch('/api/stats').then((r) => r.json() as Promise<{ totalBookmarks?: number }>),
@@ -342,7 +342,7 @@ export default function MindmapPage() {
         setTotalBookmarks(stats.totalBookmarks ?? 0)
         setPipeline(pipelineStatus)
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Unknown error'))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error desconocido'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -351,7 +351,7 @@ export default function MindmapPage() {
       <div className="flex items-center justify-center h-screen w-full">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={36} className="text-indigo-400 animate-spin" />
-          <p className="text-zinc-400 text-sm">Loading mindmap...</p>
+          <p className="text-zinc-400 text-sm">Cargando mindmap...</p>
         </div>
       </div>
     )
@@ -372,8 +372,8 @@ export default function MindmapPage() {
           <UncategorizedState totalBookmarks={totalBookmarks} />
         ) : (
           <div className="text-center">
-            <p className="text-xl font-semibold text-zinc-400">No data to display</p>
-            <p className="text-zinc-600 text-sm mt-1">Import and categorize bookmarks first.</p>
+            <p className="text-xl font-semibold text-zinc-400">Sin datos para mostrar</p>
+            <p className="text-zinc-600 text-sm mt-1">Importa y categoriza bookmarks primero.</p>
           </div>
         )}
       </div>

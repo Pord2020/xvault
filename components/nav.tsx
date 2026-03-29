@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ThemeToggle from './theme-toggle'
 import {
   LayoutDashboard,
@@ -15,9 +15,14 @@ import {
   ChevronRight,
   Command,
   Bookmark,
-  Copy,
-  Check,
-  Coffee,
+  MessageSquare,
+  FolderOpen,
+  TrendingUp,
+  BookOpen,
+  Newspaper,
+  GitMerge,
+  Bell,
+  ExternalLink,
 } from 'lucide-react'
 
 interface NavItem {
@@ -27,63 +32,32 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/ai-search', label: 'AI Search', icon: Sparkles },
-  { href: '/bookmarks', label: 'Browse', icon: Search },
-  { href: '/mindmap', label: 'Mindmap', icon: GitBranch },
-  { href: '/import', label: 'Import', icon: Upload },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'Inicio', icon: LayoutDashboard },
+  { href: '/ai-search', label: 'Búsqueda IA', icon: Sparkles },
+  { href: '/ask', label: 'Pregunta a tus bookmarks', icon: MessageSquare },
+  { href: '/queue', label: 'Lista de lectura', icon: BookOpen },
+  { href: '/bookmarks', label: 'Explorar', icon: Search },
+  { href: '/collections', label: 'Colecciones', icon: FolderOpen },
+  { href: '/digest', label: 'Resumen semanal', icon: Newspaper },
+  { href: '/duplicates', label: 'Duplicados', icon: GitMerge },
+  { href: '/trending', label: 'Tendencias', icon: TrendingUp },
+  { href: '/mindmap', label: 'Mapa mental', icon: GitBranch },
+  { href: '/import', label: 'Importar', icon: Upload },
+  { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 
-const DONATION_ADDRESS = '0xcF10B967a9e422753812004Cd59990f62E360760'
-const BUILDER_X = 'https://x.com/viperr'
-
 function SupportFooter() {
-  const [copied, setCopied] = useState(false)
-
-  function copyAddress() {
-    void navigator.clipboard.writeText(DONATION_ADDRESS).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
   return (
     <div className="mx-3 mt-auto mb-3 pt-3 border-t border-zinc-800/50">
-      {/* Builder credit */}
       <a
-        href={BUILDER_X}
+        href="https://x.com/pato_enes_"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-all group mb-1"
+        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-all group"
       >
         <span className="text-[13px]">𝕏</span>
-        <span className="text-[11px] font-medium">Built by @viperr</span>
+        <span className="text-[11px] font-medium">Hecho por @pato_enes_</span>
       </a>
-
-      {/* Donate card */}
-      <div className="rounded-xl bg-zinc-800/40 border border-zinc-700/30 p-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Coffee size={12} className="text-amber-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-zinc-300">Support Siftly</span>
-        </div>
-        <p className="text-[10px] text-zinc-600 mb-2 leading-relaxed">
-          If Siftly saves you time, consider leaving a tip ☕
-        </p>
-        <button
-          onClick={copyAddress}
-          title="Copy ETH address"
-          className="w-full flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg bg-zinc-900/80 border border-zinc-700/40 hover:border-amber-500/40 hover:bg-zinc-900 transition-all group"
-        >
-          <span className="text-[9.5px] font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors truncate">
-            {DONATION_ADDRESS.slice(0, 10)}…{DONATION_ADDRESS.slice(-6)}
-          </span>
-          {copied
-            ? <Check size={11} className="text-emerald-400 shrink-0" />
-            : <Copy size={11} className="text-zinc-600 group-hover:text-amber-400 shrink-0 transition-colors" />
-          }
-        </button>
-      </div>
     </div>
   )
 }
@@ -108,11 +82,20 @@ interface PipelineStatus {
 }
 
 const PIPELINE_STAGE_LABELS: Record<string, string> = {
-  vision: 'Analyzing images',
-  entities: 'Extracting entities',
-  enrichment: 'Generating tags',
-  categorize: 'Categorizing',
-  parallel: 'Processing in parallel',
+  vision: 'Analizando imágenes',
+  entities: 'Extrayendo entidades',
+  enrichment: 'Generando etiquetas',
+  categorize: 'Categorizando',
+  parallel: 'Procesando en paralelo',
+}
+
+interface DueReminder {
+  id: string
+  tweetId: string
+  text: string
+  authorHandle: string
+  reminderNote: string | null
+  reminderAt: string
 }
 
 export default function Nav() {
@@ -125,6 +108,11 @@ export default function Nav() {
     return localStorage.getItem('nav-collections-open') !== 'false'
   })
   const [pipeline, setPipeline] = useState<PipelineStatus | null>(null)
+
+  // Reminder bell state
+  const [dueReminders, setDueReminders] = useState<DueReminder[]>([])
+  const [bellOpen, setBellOpen] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
 
   function toggleCollections() {
     setCollectionsOpen((v) => {
@@ -174,6 +162,33 @@ export default function Nav() {
     return () => clearInterval(interval)
   }, [])
 
+  // Poll due reminders on mount and every 5 minutes
+  useEffect(() => {
+    function fetchDueReminders() {
+      fetch('/api/reminders/due')
+        .then((r) => r.ok ? r.json() : Promise.resolve({ reminders: [] }))
+        .then((d: { reminders?: DueReminder[] }) => setDueReminders(d.reminders ?? []))
+        .catch(() => {})
+    }
+    fetchDueReminders()
+    const interval = setInterval(fetchDueReminders, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Close bell dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false)
+      }
+    }
+    if (bellOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [bellOpen])
+
+  // Suppress unused variable warning for totalBookmarks (kept for future use)
+  void totalBookmarks
+
   const visibleCats = showAllCats ? categories : categories.slice(0, 8)
 
   return (
@@ -181,9 +196,9 @@ export default function Nav() {
 
       {/* Brand */}
       <div className="flex items-center justify-center gap-3 px-4 py-3.5 border-b border-zinc-800/50">
-        <img src="/logo.svg" alt="Siftly" className="w-9 h-9 shrink-0" />
+        <img src="/logo.svg" alt="XVault" className="w-9 h-9 shrink-0" />
         <span className="text-zinc-100 font-bold text-[17px] tracking-tight">
-          Sift<span style={{ color: '#F5A623' }}>ly</span>
+          X<span style={{ color: '#818cf8' }}>Vault</span>
         </span>
         <div className="shrink-0 flex items-center">
           <ThemeToggle />
@@ -202,7 +217,7 @@ export default function Nav() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
           </span>
           <span className="text-[11px] font-medium text-indigo-300 truncate">
-            {pipeline.stage ? (PIPELINE_STAGE_LABELS[pipeline.stage] ?? pipeline.stage) : 'AI pipeline'}
+            {pipeline.stage ? (PIPELINE_STAGE_LABELS[pipeline.stage] ?? pipeline.stage) : 'Pipeline IA'}
             {pipeline.stage === 'categorize' && pipeline.total > 0
               ? ` ${pipeline.done}/${pipeline.total}`
               : '…'}
@@ -210,18 +225,70 @@ export default function Nav() {
         </Link>
       )}
 
-      {/* Ctrl+K search trigger */}
-      <div className="px-3 pt-3 pb-1">
+      {/* Ctrl+K search trigger + reminder bell */}
+      <div className="px-3 pt-3 pb-1 flex items-center gap-2">
         <button
           onClick={openSearch}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/50 border border-zinc-700/40 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all text-xs"
+          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/50 border border-zinc-700/40 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all text-xs"
         >
           <Search size={12} className="shrink-0" />
-          <span className="flex-1 text-left">Search…</span>
+          <span className="flex-1 text-left">Buscar…</span>
           <kbd className="flex items-center gap-0.5 text-[10px] text-zinc-600 font-mono">
             <Command size={9} />K
           </kbd>
         </button>
+
+        {/* Reminder bell */}
+        <div ref={bellRef} className="relative shrink-0">
+          <button
+            onClick={() => setBellOpen((v) => !v)}
+            title="Recordatorios pendientes"
+            className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-800/50 border border-zinc-700/40 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all"
+          >
+            <Bell size={13} />
+            {dueReminders.length > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-amber-400 rounded-full border border-zinc-900" />
+            )}
+          </button>
+
+          {bellOpen && (
+            <div className="absolute left-0 top-full mt-1.5 w-72 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="px-3 py-2 border-b border-zinc-800 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Recordatorios pendientes</span>
+                {dueReminders.length > 0 && (
+                  <span className="text-[10px] text-amber-400 font-medium">{dueReminders.length} pendiente{dueReminders.length !== 1 ? 's' : ''}</span>
+                )}
+              </div>
+              {dueReminders.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-zinc-600">Sin recordatorios pendientes</div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto">
+                  {dueReminders.map((r) => (
+                    <div key={r.id} className="px-3 py-2.5 border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/40 transition-colors">
+                      <p className="text-[12px] text-zinc-300 font-medium truncate">
+                        @{r.authorHandle}
+                      </p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">
+                        {r.text.slice(0, 80)}{r.text.length > 80 ? '…' : ''}
+                      </p>
+                      {r.reminderNote && (
+                        <p className="text-[10px] text-amber-400/80 mt-0.5 truncate">{r.reminderNote}</p>
+                      )}
+                      <Link
+                        href={`/bookmarks?highlight=${r.id}`}
+                        onClick={() => setBellOpen(false)}
+                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        Ver
+                        <ExternalLink size={9} />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main nav */}
@@ -256,14 +323,14 @@ export default function Nav() {
             className="flex items-center justify-between px-2 mb-2 w-full group"
           >
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold">
-              Collections
+              Colecciones
             </p>
             <div className="flex items-center gap-1.5">
               <Link
                 href="/categories"
                 onClick={(e) => e.stopPropagation()}
                 className="text-zinc-700 hover:text-zinc-400 transition-colors p-0.5 rounded"
-                title="Manage categories"
+                title="Administrar categorías"
               >
                 <Tag size={11} />
               </Link>
@@ -312,7 +379,7 @@ export default function Nav() {
                     size={10}
                     className={`transition-transform ${showAllCats ? 'rotate-90' : ''}`}
                   />
-                  {showAllCats ? 'Show less' : `${categories.length - 8} more`}
+                  {showAllCats ? 'Ver menos' : `${categories.length - 8} más`}
                 </button>
               )}
             </>

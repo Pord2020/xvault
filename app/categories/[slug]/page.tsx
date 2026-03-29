@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Download, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, ArrowLeft, Sparkles, X, Loader2 } from 'lucide-react'
 import BookmarkCard from '@/components/bookmark-card'
 import type { BookmarkWithMedia, Category } from '@/lib/types'
 
@@ -31,17 +31,17 @@ function Pagination({ page, total, limit, onChange }: {
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronLeft size={16} />
-        Previous
+        Anterior
       </button>
       <span className="text-sm text-zinc-500">
-        Page {page} of {totalPages}
+        Página {page} de {totalPages}
       </span>
       <button
         onClick={() => onChange(page + 1)}
         disabled={page >= totalPages}
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
-        Next
+        Siguiente
         <ChevronRight size={16} />
       </button>
     </div>
@@ -54,6 +54,11 @@ export default function CategoryPage() {
   const [data, setData] = useState<CategoryPageData | null>(null)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+
+  // AI Summary state
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryText, setSummaryText] = useState<string | null>(null)
+  const [summaryOpen, setSummaryOpen] = useState(false)
 
   const fetchData = useCallback(async (p: number) => {
     setLoading(true)
@@ -91,6 +96,23 @@ export default function CategoryPage() {
     window.location.href = `/api/export?type=zip&category=${slug}`
   }
 
+  async function handleAISummary() {
+    setSummaryLoading(true)
+    setSummaryOpen(false)
+    setSummaryText(null)
+    try {
+      const res = await fetch(`/api/categories/${slug}/summary`, { method: 'POST' })
+      const d = await res.json()
+      setSummaryText(d.summary ?? 'No hay resumen disponible.')
+      setSummaryOpen(true)
+    } catch {
+      setSummaryText('Error al generar el resumen. Inténtalo de nuevo.')
+      setSummaryOpen(true)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
@@ -115,11 +137,11 @@ export default function CategoryPage() {
         className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors mb-6"
       >
         <ArrowLeft size={14} />
-        All Categories
+        Todas las categorías
       </button>
 
       {category && (
-        <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <div
               className="w-4 h-4 rounded-full shrink-0"
@@ -133,13 +155,59 @@ export default function CategoryPage() {
               <p className="text-zinc-500 text-sm mt-1">{total.toLocaleString()} bookmark{total !== 1 ? 's' : ''}</p>
             </div>
           </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors shrink-0"
-          >
-            <Download size={15} />
-            Export ZIP
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleAISummary}
+              disabled={summaryLoading}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {summaryLoading
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Sparkles size={14} />
+              }
+              Resumen IA
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
+            >
+              <Download size={15} />
+              Exportar ZIP
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary panel */}
+      {summaryOpen && summaryText && category && (
+        <div className="bg-zinc-900 border border-violet-500/30 rounded-2xl p-5 mt-4 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="shrink-0 w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mt-0.5">
+                <Sparkles size={15} className="text-violet-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-zinc-200 mb-2">
+                  Resumen IA — {category.name}
+                </p>
+                <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{summaryText}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSummaryOpen(false)}
+              className="shrink-0 text-zinc-600 hover:text-zinc-300 transition-colors mt-0.5"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => setSummaryOpen(false)}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 
@@ -153,7 +221,7 @@ export default function CategoryPage() {
 
       {!loading && bookmarks.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-xl font-semibold text-zinc-400">No bookmarks in this category</p>
+          <p className="text-xl font-semibold text-zinc-400">Sin bookmarks en esta categoría</p>
         </div>
       )}
 

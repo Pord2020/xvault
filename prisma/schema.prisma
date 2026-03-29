@@ -21,13 +21,24 @@ model Bookmark {
   enrichedAt      DateTime? // when AI enrichment last ran — drives incremental processing
   enrichmentMeta  String?   // JSON: {sentiment, people[], companies[]} from batch enrichment
   source          String    @default("bookmark")  // "bookmark" | "like"
+  repoMeta        String?   // JSON: {fullName, stars, description, lastPush, isArchived, topics[]}
+  highlights      String?   // JSON: [{id, text, note, createdAt}]
+  readingStatus   String?   // "queue" | "reading" | "done"
+  queuedAt        DateTime?
+  reminderAt      DateTime?
+  reminderNote    String?
+  embeddingVec    String?   // JSON float[] for similarity search
+  threadData      String?   // JSON: reconstructed thread tweets array
   mediaItems    MediaItem[]
   categories    BookmarkCategory[]
+  collections   BookmarkCollection[]
 
   @@index([authorHandle])
   @@index([tweetCreatedAt])
   @@index([enrichedAt])
   @@index([source])
+  @@index([readingStatus])
+  @@index([reminderAt])
 }
 
 model Category {
@@ -79,4 +90,43 @@ model ImportJob {
 model Setting {
   key   String @id
   value String
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  emoji       String   @default("📁")
+  createdAt   DateTime @default(now())
+  bookmarks   BookmarkCollection[]
+  shared      SharedCollection?
+}
+
+model SharedCollection {
+  id           String     @id @default(cuid())
+  collectionId String     @unique
+  slug         String     @unique
+  views        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+}
+
+model Digest {
+  id          String   @id @default(cuid())
+  content     String   // JSON: full digest structure
+  generatedAt DateTime @default(now())
+  periodStart DateTime
+  periodEnd   DateTime
+}
+
+model BookmarkCollection {
+  bookmarkId   String
+  collectionId String
+  addedAt      DateTime @default(now())
+  bookmark     Bookmark   @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, collectionId])
+  @@index([collectionId])
 }

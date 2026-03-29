@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, useEffect, useState } from 'react'
-import { ExternalLink, Download, Play, Pencil, X, Check, ImageOff, Bookmark, Globe } from 'lucide-react'
+import { ExternalLink, Download, Play, Pencil, X, Check, ImageOff, Bookmark, Globe, Star, FolderPlus, AlertTriangle, Github } from 'lucide-react'
 import type { BookmarkWithMedia, Category } from '@/lib/types'
 
 // ── URL helpers ────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ function LinkPreview({ url, tweetUrl, tweetId, prominent = false }: { url: strin
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-zinc-200 group-hover/link:text-white transition-colors">
-            {data.title?.includes('Article') ? 'View Article on X' : data.title || 'View on X'}
+            {data.title?.includes('Article') ? 'Ver artículo en X' : data.title || 'Ver en X'}
           </p>
           <p className="text-xs text-zinc-500 truncate">{data.domain}{data.url ? new URL(data.url).pathname : ''}</p>
         </div>
@@ -300,7 +300,7 @@ function MediaOverlay({ label, icon }: { label?: string; icon?: React.ReactNode 
     <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors">
       {icon ?? (
         <span className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm">
-          {label ?? 'Watch on X ↗'}
+          {label ?? 'Ver en X ↗'}
         </span>
       )}
     </div>
@@ -345,7 +345,7 @@ function TopMediaSlot({ item, tweetUrl }: TopMediaSlotProps) {
           <div className="h-48 flex flex-col items-center justify-center gap-2 bg-zinc-800/50 hover:bg-zinc-800/70 transition-colors">
             <ImageOff size={18} className="text-zinc-600" />
             <span className="px-3 py-1.5 rounded-full bg-zinc-700 text-zinc-400 text-xs font-semibold">
-              View on X ↗
+              Ver en X ↗
             </span>
           </div>
         </a>
@@ -355,7 +355,7 @@ function TopMediaSlot({ item, tweetUrl }: TopMediaSlotProps) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={proxyUrl(item.url)}
-        alt="Bookmark media"
+        alt="Contenido multimedia"
         className="w-full h-48 object-cover"
         loading="lazy"
         onError={() => setImgError(true)}
@@ -384,7 +384,7 @@ function TopMediaSlot({ item, tweetUrl }: TopMediaSlotProps) {
           <MediaOverlay />
         </div>
       ) : (
-        <MediaPlaceholder label="Watch on X ↗" isVideo={item.type === 'video'} />
+        <MediaPlaceholder label="Ver en X ↗" isVideo={item.type === 'video'} />
       )}
     </a>
   )
@@ -509,12 +509,12 @@ function CategoryEditor({ bookmarkId, currentCategoryIds, onSave, onClose }: Cat
       className="absolute left-0 right-0 top-full mt-2 z-50 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-2xl shadow-black/50"
       onClick={(e) => e.stopPropagation()}
     >
-      <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">Edit categories</p>
+      <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">Editar categorías</p>
 
-      {loading && <p className="text-xs text-zinc-600 py-2">Loading…</p>}
+      {loading && <p className="text-xs text-zinc-600 py-2">Cargando…</p>}
 
       {!loading && allCategories.length === 0 && (
-        <p className="text-xs text-zinc-600 py-2">No categories found.</p>
+        <p className="text-xs text-zinc-600 py-2">No se encontraron categorías.</p>
       )}
 
       {!loading && allCategories.length > 0 && (
@@ -547,16 +547,155 @@ function CategoryEditor({ bookmarkId, currentCategoryIds, onSave, onClose }: Cat
 
       <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-zinc-800">
         <button onClick={onClose} className="px-2.5 py-1 text-xs rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
-          Cancel
+          Cancelar
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
           className="px-3 py-1 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Guardando…' : 'Guardar'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── Stale detection ────────────────────────────────────────────────────────────
+
+const STALE_DAYS = 180
+
+function isStale(tweetCreatedAt: string | null, entities: string | null): boolean {
+  if (!tweetCreatedAt) return false
+  const ageDays = (Date.now() - new Date(tweetCreatedAt).getTime()) / (1000 * 60 * 60 * 24)
+  if (ageDays < STALE_DAYS) return false
+  if (!entities) return false
+  try {
+    const ent = JSON.parse(entities) as { tools?: string[] }
+    return (ent.tools?.length ?? 0) > 0
+  } catch {
+    return false
+  }
+}
+
+// ── Repo meta chip ────────────────────────────────────────────────────────────
+
+interface RepoMetaData {
+  fullName: string; stars: number; description: string | null
+  language: string | null; isArchived: boolean; lastPush: string
+}
+
+function RepoMetaChip({ repoMeta }: { repoMeta: string }) {
+  try {
+    const r = JSON.parse(repoMeta) as RepoMetaData
+    const stars = r.stars >= 1000 ? `${(r.stars / 1000).toFixed(1)}k` : String(r.stars)
+    const staleRepo = (Date.now() - new Date(r.lastPush).getTime()) > 365 * 24 * 60 * 60 * 1000
+    return (
+      <a
+        href={`https://github.com/${r.fullName}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-all mt-2 max-w-full overflow-hidden"
+      >
+        <Github size={11} className="shrink-0 text-zinc-500" />
+        <span className="truncate font-mono text-[11px]">{r.fullName}</span>
+        <span className="flex items-center gap-0.5 shrink-0 text-amber-400/80">
+          <Star size={9} className="fill-current" />
+          {stars}
+        </span>
+        {r.isArchived && (
+          <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 shrink-0">archived</span>
+        )}
+        {!r.isArchived && staleRepo && (
+          <span className="text-[9px] text-zinc-600 shrink-0">inactive</span>
+        )}
+        {r.language && (
+          <span className="text-[10px] text-zinc-600 shrink-0">{r.language}</span>
+        )}
+      </a>
+    )
+  } catch {
+    return null
+  }
+}
+
+// ── Collection pin button ─────────────────────────────────────────────────────
+
+interface CollectionItem { id: string; name: string; emoji: string; color: string }
+
+function CollectionPin({ bookmarkId }: { bookmarkId: string }) {
+  const [open, setOpen] = useState(false)
+  const [collections, setCollections] = useState<CollectionItem[]>([])
+  const [pinned, setPinned] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    Promise.all([
+      fetch('/api/collections').then((r) => r.json()) as Promise<{ collections: CollectionItem[] }>,
+    ]).then(([colData]) => {
+      setCollections(colData.collections ?? [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [open])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  async function toggle(collectionId: string) {
+    if (pinned.has(collectionId)) {
+      await fetch(`/api/collections/${collectionId}/bookmarks?bookmarkId=${bookmarkId}`, { method: 'DELETE' })
+      setPinned((p) => { const n = new Set(p); n.delete(collectionId); return n })
+    } else {
+      await fetch(`/api/collections/${collectionId}/bookmarks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmarkId }),
+      })
+      setPinned((p) => new Set([...p, collectionId]))
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+        title="Agregar a colección"
+      >
+        <FolderPlus size={13} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl shadow-black/50 p-2" onClick={(e) => e.stopPropagation()}>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold px-2 py-1 mb-1">Agregar a colección</p>
+          {loading && <p className="text-xs text-zinc-600 px-2 py-2">Cargando…</p>}
+          {!loading && collections.length === 0 && (
+            <div className="px-2 py-2">
+              <p className="text-xs text-zinc-600">Sin colecciones aún.</p>
+              <a href="/collections" className="text-xs text-indigo-400 hover:underline" onClick={(e) => e.stopPropagation()}>Crear una →</a>
+            </div>
+          )}
+          {collections.map((col) => (
+            <button
+              key={col.id}
+              onClick={() => void toggle(col.id)}
+              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs hover:bg-zinc-800 transition-colors text-left"
+            >
+              <span className="text-sm">{col.emoji}</span>
+              <span className={`flex-1 truncate ${pinned.has(col.id) ? 'text-indigo-300' : 'text-zinc-300'}`}>{col.name}</span>
+              {pinned.has(col.id) && <Check size={11} className="text-indigo-400 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -564,13 +703,14 @@ function CategoryEditor({ bookmarkId, currentCategoryIds, onSave, onClose }: Cat
 // ── Main card ──────────────────────────────────────────────────────────────────
 
 interface BookmarkCardProps {
-  bookmark: BookmarkWithMedia
+  bookmark: BookmarkWithMedia & { repoMeta?: string | null }
 }
 
 export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
   const [categories, setCategories] = useState(bookmark.categories)
   const [expanded, setExpanded] = useState(false)
   const [editingCategories, setEditingCategories] = useState(false)
+  const stale = isStale(bookmark.tweetCreatedAt ?? null, (bookmark as BookmarkWithMedia & { entities?: string | null }).entities ?? null)
 
   const tweetUrl = (bookmark.authorHandle && bookmark.authorHandle !== 'unknown')
     ? `https://twitter.com/${bookmark.authorHandle}/status/${bookmark.tweetId}`
@@ -662,11 +802,12 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
 
           {/* Actions — visible on hover */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+            <CollectionPin bookmarkId={bookmark.id} />
             {isDownloadable && (
               <button
                 onClick={handleDownload}
                 className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-                title="Download media"
+                title="Descargar contenido"
               >
                 <Download size={13} />
               </button>
@@ -676,7 +817,7 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Open on X"
+              title="Abrir en X"
             >
               <ExternalLink size={13} />
             </a>
@@ -695,7 +836,7 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
                     onClick={() => setExpanded(true)}
                     className="text-indigo-400 hover:text-indigo-300 transition-colors"
                   >
-                    more
+                    más
                   </button>
                 </span>
               )}
@@ -706,17 +847,26 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
                     onClick={() => setExpanded(false)}
                     className="text-zinc-500 hover:text-zinc-400 transition-colors text-xs"
                   >
-                    less
+                    menos
                   </button>
                 </span>
               )}
             </p>
           )}
           {!displayText && !firstMedia && !previewUrl && (
-            <p className="text-xs text-zinc-700 italic">No text content</p>
+            <p className="text-xs text-zinc-700 italic">Sin contenido de texto</p>
           )}
           {previewUrl && (
             <LinkPreview url={previewUrl} tweetUrl={tweetUrl} tweetId={bookmark.tweetId} prominent={!displayText} />
+          )}
+          {/* GitHub repo chip */}
+          {bookmark.repoMeta && <RepoMetaChip repoMeta={bookmark.repoMeta} />}
+          {/* Stale warning */}
+          {stale && (
+            <div className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded-lg bg-amber-500/8 border border-amber-500/15 w-fit">
+              <AlertTriangle size={10} className="text-amber-500/70 shrink-0" />
+              <span className="text-[10px] text-amber-500/70">Puede estar desactualizado</span>
+            </div>
           )}
         </div>
 
@@ -728,7 +878,7 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
               <CategoryChip key={cat.id} category={cat} onRemove={handleRemoveCategory} />
             ))}
             {categories.length === 0 && (
-              <span className="text-xs text-zinc-700 italic">Uncategorized</span>
+              <span className="text-xs text-zinc-700 italic">Sin categoría</span>
             )}
             {isKnownAuthor && dateStr && (
               <span className="ml-auto text-xs text-zinc-600 flex-shrink-0">
@@ -742,10 +892,10 @@ export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
             <button
               onClick={() => setEditingCategories((v) => !v)}
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs text-zinc-700 hover:text-zinc-300 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-all"
-              title="Edit categories"
+              title="Editar categorías"
             >
               <Pencil size={10} />
-              edit
+              editar
             </button>
           </div>
 

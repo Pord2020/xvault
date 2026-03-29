@@ -100,13 +100,13 @@ async function getDashboardData() {
 
 function getGreeting(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return 'Buenos días'
+  if (hour < 17) return 'Buenas tardes'
+  return 'Buenas noches'
 }
 
 function formatDate(): string {
-  return new Date().toLocaleDateString('en-US', {
+  return new Date().toLocaleDateString('es-419', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -170,9 +170,9 @@ export default async function DashboardPage() {
               {getGreeting()} <span className="text-indigo-400">&#128075;</span>
             </h1>
             <p className="text-zinc-400 mt-1.5">
-              You have{' '}
+              Tienes{' '}
               <span className="text-zinc-100 font-semibold">{data.totalBookmarks.toLocaleString()}</span>{' '}
-              tweets saved and ready to explore.
+              tweets guardados y listos para explorar.
               {data.likeSourceCount > 0 && (
                 <span className="text-zinc-500">
                   {' '}({data.bookmarkSourceCount.toLocaleString()} bookmarks, {data.likeSourceCount.toLocaleString()} likes)
@@ -187,14 +187,14 @@ export default async function DashboardPage() {
               className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors"
             >
               <Upload size={15} />
-              Import More
+              Importar más
             </Link>
             <Link
               href="/categorize"
               className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-colors border border-zinc-700"
             >
               <Sparkles size={15} />
-              AI Categorize
+              Categorizar con IA
             </Link>
             <Link
               href="/ai-search"
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label={data.likeSourceCount > 0 ? `${data.bookmarkSourceCount.toLocaleString()} bookmarks · ${data.likeSourceCount.toLocaleString()} likes` : 'Total Bookmarks'}
+          label={data.likeSourceCount > 0 ? `${data.bookmarkSourceCount.toLocaleString()} bookmarks · ${data.likeSourceCount.toLocaleString()} likes` : 'Total de bookmarks'}
           value={data.totalBookmarks}
           icon={BookmarkIcon}
           iconColor="text-indigo-400"
@@ -218,7 +218,7 @@ export default async function DashboardPage() {
           borderColor="border-t-indigo-500"
         />
         <StatCard
-          label="Categorized"
+          label="Categorizados"
           value={categorizedCount}
           icon={Tag}
           iconColor="text-emerald-400"
@@ -226,7 +226,7 @@ export default async function DashboardPage() {
           borderColor="border-t-emerald-500"
         />
         <StatCard
-          label="Media Items"
+          label="Archivos multimedia"
           value={data.totalMedia}
           icon={Image}
           iconColor="text-violet-400"
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
           borderColor="border-t-violet-500"
         />
         <StatCard
-          label="Uncategorized"
+          label="Sin categorizar"
           value={data.uncategorizedCount}
           icon={Layers}
           iconColor="text-amber-400"
@@ -249,14 +249,14 @@ export default async function DashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-0.5">Latest</p>
-              <h2 className="text-xl font-semibold text-zinc-100">Recently Added</h2>
+              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-0.5">Recientes</p>
+              <h2 className="text-xl font-semibold text-zinc-100">Agregados recientemente</h2>
             </div>
             <Link
               href="/bookmarks"
               className="flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
             >
-              View all
+              Ver todos
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -275,14 +275,14 @@ export default async function DashboardPage() {
         <section className="pb-8">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-0.5">Browse by topic</p>
-              <h2 className="text-xl font-semibold text-zinc-100">Top Categories</h2>
+              <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-0.5">Explorar por tema</p>
+              <h2 className="text-xl font-semibold text-zinc-100">Categorías principales</h2>
             </div>
             <Link
               href="/categories"
               className="flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
             >
-              Manage
+              Administrar
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -318,10 +318,10 @@ function EmptyState() {
         <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-500/10 mx-auto mb-6">
           <BookmarkIcon size={36} className="text-indigo-400 opacity-80" />
         </div>
-        <h2 className="text-2xl font-bold text-zinc-100 mb-3">No bookmarks yet</h2>
+        <h2 className="text-2xl font-bold text-zinc-100 mb-3">Aún no hay bookmarks</h2>
         <p className="text-zinc-400 mb-8 leading-relaxed">
-          Import your Twitter bookmarks to get started. Once imported, use AI to automatically
-          categorize and organize them.
+          Importa tus bookmarks de Twitter para comenzar. Una vez importados, usa la IA para
+          categorizarlos y organizarlos automáticamente.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
@@ -329,13 +329,13 @@ function EmptyState() {
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
           >
             <Upload size={16} />
-            Import bookmarks
+            Importar bookmarks
           </Link>
           <Link
             href="/settings"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-sm transition-colors border border-zinc-700"
           >
-            Configure settings
+            Configurar ajustes
           </Link>
         </div>
       </div>

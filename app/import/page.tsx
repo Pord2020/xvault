@@ -36,29 +36,29 @@ interface CategorizeStatus {
 
 const STAGE_INFO: Record<NonNullable<Stage>, { label: string; icon: React.ReactNode; desc: string }> = {
   vision: {
-    label: 'Analyzing images',
+    label: 'Analizando imágenes',
     icon: <Eye size={14} />,
-    desc: 'Extracting text, objects, and context from photos, GIFs, and videos',
+    desc: 'Extrayendo texto, objetos y contexto de fotos, GIFs y videos',
   },
   entities: {
-    label: 'Extracting entities',
+    label: 'Extrayendo entidades',
     icon: <Tag size={14} />,
-    desc: 'Mining hashtags, URLs, and tool mentions from tweet data',
+    desc: 'Minando hashtags, URLs y menciones de herramientas desde los datos del tweet',
   },
   enrichment: {
-    label: 'Generating semantic tags',
+    label: 'Generando etiquetas semánticas',
     icon: <Brain size={14} />,
-    desc: 'Creating 30-50 searchable tags per bookmark for AI search',
+    desc: 'Creando 30-50 etiquetas buscables por bookmark para búsqueda con IA',
   },
   categorize: {
-    label: 'Categorizing',
+    label: 'Categorizando',
     icon: <Layers size={14} />,
-    desc: 'Assigning each bookmark to the most relevant categories',
+    desc: 'Asignando cada bookmark a las categorías más relevantes',
   },
   parallel: {
-    label: 'Processing all stages in parallel',
+    label: 'Procesando todas las etapas en paralelo',
     icon: <Sparkles size={14} />,
-    desc: 'Vision, enrichment, and categorization running concurrently across 20 workers',
+    desc: 'Visión, enriquecimiento y categorización ejecutándose en simultáneo con 20 trabajadores',
   },
 }
 
@@ -388,7 +388,7 @@ function DraggableBookmarklet() {
       draggable
       onClick={(e) => e.preventDefault()}
       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-grab active:cursor-grabbing select-none transition-colors"
-      title="Drag this to your bookmarks bar — do not click"
+      title="Arrastra esto a tu barra de marcadores — no hacer clic"
     >
       📥 Export X Bookmarks
     </a>
@@ -398,7 +398,7 @@ function DraggableBookmarklet() {
 // ── Components ────────────────────────────────────────────────────────────────
 
 function StepIndicator({ current }: { current: Step }) {
-  const steps = ['Upload', 'Importing', 'Categorize']
+  const steps = ['Subir', 'Importando', 'Categorizar']
   return (
     <div className="flex items-center gap-2 mb-8">
       {steps.map((label, i) => {
@@ -435,7 +435,7 @@ function CopyButton({ text }: { text: string }) {
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
     >
       {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-      {copied ? 'Copied!' : 'Copy'}
+      {copied ? '¡Copiado!' : 'Copiar'}
     </button>
   )
 }
@@ -467,8 +467,8 @@ function UploadZone({ onFile }: { onFile: (file: File) => void }) {
       }`}
     >
       <Upload size={28} className="mx-auto mb-3 text-zinc-500" />
-      <p className="text-zinc-300 font-medium text-sm">Drop your JSON file here</p>
-      <p className="text-zinc-600 text-xs mt-1">or click to browse</p>
+      <p className="text-zinc-300 font-medium text-sm">Suelta tu archivo JSON aquí</p>
+      <p className="text-zinc-600 text-xs mt-1">o haz clic para buscar</p>
       <input ref={inputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
     </div>
   )
@@ -481,17 +481,17 @@ function BookmarkletTab({ onFile, importSource }: { onFile: (file: File) => void
   const steps = [
     {
       num: 1,
-      title: 'Add the bookmarklet to your bookmark bar',
+      title: 'Agrega el bookmarklet a tu barra de marcadores',
       content: (
         <div className="mt-2 space-y-3">
           <p className="text-xs text-zinc-500">
-            Show your bookmark bar first: <strong className="text-zinc-300">View → Show Bookmarks Bar</strong>
+            Primero muestra tu barra de marcadores: <strong className="text-zinc-300">Ver → Mostrar barra de marcadores</strong>
           </p>
           {/* Option A: Drag */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
             <div className="shrink-0 w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">A</div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-zinc-300 mb-1.5">Drag to bookmark bar</p>
+              <p className="text-xs font-medium text-zinc-300 mb-1.5">Arrastra a la barra de marcadores</p>
               <DraggableBookmarklet />
             </div>
           </div>
@@ -499,11 +499,11 @@ function BookmarkletTab({ onFile, importSource }: { onFile: (file: File) => void
           <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/50">
             <div className="shrink-0 w-6 h-6 rounded-full bg-zinc-600/40 text-zinc-400 flex items-center justify-center text-xs font-bold mt-0.5">B</div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-zinc-300 mb-1.5">Manual (works in all browsers)</p>
+              <p className="text-xs font-medium text-zinc-300 mb-1.5">Manual (funciona en todos los navegadores)</p>
               <ol className="text-xs text-zinc-500 space-y-0.5 mb-2">
-                <li>1. Copy the URL below</li>
-                <li>2. Right-click bookmark bar → <strong className="text-zinc-400">Add bookmark / New bookmark</strong></li>
-                <li>3. Name it <em className="text-zinc-400">Export X Bookmarks</em> and paste the URL</li>
+                <li>1. Copia la URL de abajo</li>
+                <li>2. Clic derecho en la barra de marcadores → <strong className="text-zinc-400">Agregar marcador / Nuevo marcador</strong></li>
+                <li>3. Nómbralo <em className="text-zinc-400">Export X Bookmarks</em> y pega la URL</li>
               </ol>
               <CopyButton text={BOOKMARKLET_HREF} />
             </div>
@@ -524,35 +524,35 @@ function BookmarkletTab({ onFile, importSource }: { onFile: (file: File) => void
           >
             {targetLabel} <ExternalLink size={11} />
           </a>{' '}
-          while logged in
+          mientras estás conectado
         </span>
       ),
     },
     {
       num: 3,
-      title: `Click "Export X Bookmarks" in your bookmark bar`,
+      title: `Haz clic en "Export X Bookmarks" en tu barra de marcadores`,
       content: (
         <p className="text-xs text-zinc-500 mt-1">
-          A purple Export button will appear on the page
+          Aparecerá un botón morado de exportar en la página
         </p>
       ),
     },
     {
       num: 4,
-      title: 'Click "▶ Auto-scroll" to capture all bookmarks automatically',
+      title: 'Haz clic en "▶ Auto-scroll" para capturar todos los bookmarks automáticamente',
       content: (
         <p className="text-xs text-zinc-500 mt-1">
-          A second button appears below the export button. Click it and it will scroll through all your bookmarks automatically — stopping when done. Or scroll manually if you prefer.
+          Aparece un segundo botón debajo del botón de exportar. Haz clic y recorrerá todos tus bookmarks automáticamente — se detiene cuando termina. O desplázate manualmente si prefieres.
         </p>
       ),
     },
     {
       num: 5,
-      title: `Click the purple "Export N ${sourceLabel}" button`,
+      title: `Haz clic en el botón morado "Export N ${sourceLabel}"`,
       content: (
         <p className="text-xs text-zinc-500 mt-1">
-          A <code className="text-xs bg-zinc-800 px-1 py-0.5 rounded">{sourceLabel}.json</code> file will download automatically.
-          Upload it below.
+          Un archivo <code className="text-xs bg-zinc-800 px-1 py-0.5 rounded">{sourceLabel}.json</code> se descargará automáticamente.
+          Súbelo abajo.
         </p>
       ),
     },
@@ -575,7 +575,7 @@ function BookmarkletTab({ onFile, importSource }: { onFile: (file: File) => void
       </ol>
 
       <div className="border-t border-zinc-800 pt-5">
-        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Upload the downloaded file</p>
+        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Sube el archivo descargado</p>
         <UploadZone onFile={onFile} />
       </div>
     </div>
@@ -600,24 +600,24 @@ function ConsoleTab({ onFile, importSource }: { onFile: (file: File) => void; im
           >
             {targetLabel} <ExternalLink size={11} />
           </a>{' '}
-          while logged in
+          mientras estás conectado
         </span>
       ),
     },
     {
       num: 2,
-      title: 'Open browser DevTools and go to the Console tab',
+      title: 'Abre las DevTools del navegador y ve a la pestaña Consola',
       content: (
         <p className="text-xs text-zinc-500 mt-1">
-          Press <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">F12</kbd> on Windows/Linux or{' '}
-          <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">⌘⌥J</kbd> on Mac,
-          then click the <strong className="text-zinc-300">Console</strong> tab
+          Presiona <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">F12</kbd> en Windows/Linux o{' '}
+          <kbd className="text-xs bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">⌘⌥J</kbd> en Mac,
+          luego haz clic en la pestaña <strong className="text-zinc-300">Consola</strong>
         </p>
       ),
     },
     {
       num: 3,
-      title: 'Paste and run the script below',
+      title: 'Pega y ejecuta el script de abajo',
       content: (
         <div className="mt-2">
           <div className="relative rounded-xl overflow-hidden border border-zinc-700 bg-zinc-950">
@@ -634,10 +634,10 @@ function ConsoleTab({ onFile, importSource }: { onFile: (file: File) => void; im
     },
     {
       num: 4,
-      title: `Press Enter, then scroll through all your ${sourceLabel}`,
+      title: `Presiona Enter, luego desplázate por todos tus ${sourceLabel}`,
       content: (
         <p className="text-xs text-zinc-500 mt-1">
-          A purple button will appear. Scroll slowly to capture all {sourceLabel}, then click the button to download.
+          Aparecerá un botón morado. Desplázate despacio para capturar todos los {sourceLabel}, luego haz clic en el botón para descargar.
         </p>
       ),
     },
@@ -660,7 +660,7 @@ function ConsoleTab({ onFile, importSource }: { onFile: (file: File) => void; im
       </ol>
 
       <div className="border-t border-zinc-800 pt-5">
-        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Upload the downloaded file</p>
+        <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider font-medium">Sube el archivo descargado</p>
         <UploadZone onFile={onFile} />
       </div>
     </div>
@@ -776,10 +776,10 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
       <div className="text-xs text-zinc-500 space-y-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-4">
         <p className="text-zinc-300 font-medium text-sm mb-2 flex items-center gap-2">
           <ExternalLink size={14} className="text-indigo-400" />
-          X OAuth 2.0 (Recommended)
+          X OAuth 2.0 (Recomendado)
         </p>
-        <p>Connect your X account using the official OAuth 2.0 flow. This is the X-approved method — no cookies or session tokens needed.</p>
-        <p className="text-zinc-600 mt-1">Requires X OAuth Client ID in Settings. Scopes: bookmark.read, tweet.read, users.read</p>
+        <p>Conecta tu cuenta de X usando el flujo oficial OAuth 2.0. Este es el método aprobado por X — sin cookies ni tokens de sesión.</p>
+        <p className="text-zinc-600 mt-1">Requiere X OAuth Client ID en Configuración. Alcances: bookmark.read, tweet.read, users.read</p>
       </div>
 
       {/* Not configured */}
@@ -787,10 +787,10 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
         <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
           <AlertCircle size={15} className="text-amber-400 shrink-0" />
           <div>
-            <p className="text-sm text-amber-300">X OAuth not configured</p>
+            <p className="text-sm text-amber-300">X OAuth no configurado</p>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Add your X OAuth Client ID (and optionally Client Secret) in{' '}
-              <Link href="/settings" className="text-indigo-400 hover:underline">Settings</Link>
+              Agrega tu X OAuth Client ID (y opcionalmente Client Secret) en{' '}
+              <Link href="/settings" className="text-indigo-400 hover:underline">Configuración</Link>
             </p>
           </div>
         </div>
@@ -806,12 +806,12 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
           {connecting ? (
             <>
               <Loader2 size={16} className="animate-spin" />
-              Redirecting to X...
+              Redirigiendo a X...
             </>
           ) : (
             <>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              Connect X Account
+              Conectar cuenta de X
             </>
           )}
         </button>
@@ -824,7 +824,7 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
             <div className="flex items-center gap-2.5">
               <CheckCircle size={15} className="text-emerald-400 shrink-0" />
               <div>
-                <span className="text-sm text-emerald-300">Connected to X</span>
+                <span className="text-sm text-emerald-300">Conectado a X</span>
                 {status.user?.username && (
                   <span className="text-xs text-zinc-500 ml-2">
                     <User size={11} className="inline -mt-0.5 mr-0.5" />
@@ -837,7 +837,7 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
               onClick={handleDisconnect}
               disabled={disconnecting}
               className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="Disconnect X account"
+              title="Desconectar cuenta de X"
             >
               {disconnecting ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
             </button>
@@ -846,7 +846,7 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
           {status.tokenExpired && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
               <AlertCircle size={14} className="text-amber-400 shrink-0" />
-              <p className="text-xs text-amber-300">Token expired. Siftly will try to auto-refresh, or you can reconnect.</p>
+              <p className="text-xs text-amber-300">Token expirado. Siftly intentará renovarlo automáticamente, o puedes reconectarte.</p>
             </div>
           )}
 
@@ -858,12 +858,12 @@ function LiveImportTab({ onSynced }: { onSynced: (result: ImportResult) => void 
             {syncing ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Fetching bookmarks...
+                Obteniendo bookmarks...
               </>
             ) : (
               <>
                 <RefreshCw size={16} />
-                Fetch Bookmarks from X
+                Obtener bookmarks de X
               </>
             )}
           </button>
@@ -895,8 +895,8 @@ function InstructionsStep({ onFile, importSource, onLiveSynced }: { onFile: (fil
           }`}
         >
           <RefreshCw size={13} className="inline -mt-0.5 mr-1" />
-          Live Import
-          <span className="ml-1.5 text-xs text-indigo-400 font-normal">Recommended</span>
+          Importar en vivo
+          <span className="ml-1.5 text-xs text-indigo-400 font-normal">Recomendado</span>
         </button>
         <button
           onClick={() => setMethod('bookmarklet')}
@@ -916,7 +916,7 @@ function InstructionsStep({ onFile, importSource, onLiveSynced }: { onFile: (fil
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          {'</>'} Console
+          {'</>'} Consola
         </button>
       </div>
 
@@ -938,8 +938,8 @@ function ImportingStep({ result }: {
     return (
       <div className="flex flex-col items-center gap-4 py-10">
         <Loader2 size={40} className="text-indigo-400 animate-spin" />
-        <p className="text-zinc-300 text-lg font-medium">Importing bookmarks...</p>
-        <p className="text-zinc-500 text-sm">This may take a moment</p>
+        <p className="text-zinc-300 text-lg font-medium">Importando bookmarks...</p>
+        <p className="text-zinc-500 text-sm">Esto puede tomar un momento</p>
       </div>
     )
   }
@@ -950,15 +950,15 @@ function ImportingStep({ result }: {
         <CheckCircle size={32} className="text-emerald-400" />
       </div>
       <div className="text-center">
-        <p className="text-xl font-bold text-zinc-100">Import Complete</p>
+        <p className="text-xl font-bold text-zinc-100">Importación completa</p>
         <p className="text-zinc-400 mt-1">
-          <span className="text-emerald-400 font-semibold">{result.imported}</span> imported,{' '}
-          <span className="text-zinc-500">{result.skipped} skipped</span> as duplicates
+          <span className="text-emerald-400 font-semibold">{result.imported}</span> importados,{' '}
+          <span className="text-zinc-500">{result.skipped} omitidos</span> como duplicados
         </p>
       </div>
       <div className="flex items-center gap-2 text-indigo-400 text-sm">
         <Loader2 size={14} className="animate-spin" />
-        Starting AI categorization…
+        Iniciando categorización con IA…
       </div>
     </div>
   )
@@ -1013,7 +1013,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
       if (!res.ok) throw new Error('Server returned ' + res.status)
     } catch {
       setStopping(false)
-      setError('Failed to stop pipeline — try again')
+      setError('No se pudo detener el pipeline — inténtalo de nuevo')
     }
   }
 
@@ -1062,7 +1062,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
           if (pollRef.current) clearInterval(pollRef.current)
           pollRef.current = null
           setRunning(false)
-          setError('Lost connection to the server. The pipeline may still be running — refresh to check.')
+          setError('Se perdió la conexión con el servidor. El pipeline puede seguir ejecutándose — recarga para verificar.')
         }
       }
     }, 1000)
@@ -1080,7 +1080,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
             onClick={() => void startCategorization()}
             className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
           >
-            Retry Categorization
+            Reintentar categorización
           </button>
         </div>
       )}
@@ -1103,10 +1103,10 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
           {status?.stageCounts && (
             <div className="space-y-1.5">
               {([
-                { key: 'visionTagged', label: 'images analyzed', icon: <Eye size={13} />, active: status.stage === 'vision' || status.stage === 'parallel' },
-                { key: 'entitiesExtracted', label: 'entities extracted', icon: <Tag size={13} />, active: status.stage === 'entities' },
-                { key: 'enriched', label: 'bookmarks enriched', icon: <Brain size={13} />, active: status.stage === 'enrichment' || status.stage === 'parallel' },
-                { key: 'categorized', label: 'categorized', icon: <Layers size={13} />, active: status.stage === 'categorize' || status.stage === 'parallel' },
+                { key: 'visionTagged', label: 'imágenes analizadas', icon: <Eye size={13} />, active: status.stage === 'vision' || status.stage === 'parallel' },
+                { key: 'entitiesExtracted', label: 'entidades extraídas', icon: <Tag size={13} />, active: status.stage === 'entities' },
+                { key: 'enriched', label: 'bookmarks enriquecidos', icon: <Brain size={13} />, active: status.stage === 'enrichment' || status.stage === 'parallel' },
+                { key: 'categorized', label: 'categorizados', icon: <Layers size={13} />, active: status.stage === 'categorize' || status.stage === 'parallel' },
               ] as { key: keyof StageCounts; label: string; icon: React.ReactNode; active: boolean }[]).map(({ key, label, icon, active }) => {
                 const count = status.stageCounts[key]
                 const total = key === 'categorized' ? status.total : null
@@ -1135,7 +1135,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-red-400 text-sm font-medium transition-colors border border-red-500/20"
           >
             <StopCircle size={15} />
-            {stopping ? 'Stopping…' : 'Stop pipeline'}
+            {stopping ? 'Deteniendo…' : 'Detener pipeline'}
           </button>
 
           {status?.lastError && (
@@ -1148,7 +1148,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
           {(status?.stage === 'categorize' || status?.stage === 'parallel') && (
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-zinc-500">
-                <span>{status.done} / {status.total} bookmarks</span>
+                <span>{status.done} / {status.total} bookmarks procesados</span>
                 <span>{progress}%</span>
               </div>
               <Progress.Root className="relative h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
@@ -1168,12 +1168,12 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
             <CheckCircle size={32} className="text-emerald-400" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-zinc-100">Categorization Complete!</p>
+            <p className="text-xl font-bold text-zinc-100">¡Categorización completa!</p>
             {status?.stageCounts && (
               <p className="text-zinc-500 text-sm mt-1">
-                {status.stageCounts.visionTagged} images analyzed ·{' '}
-                {status.stageCounts.enriched} bookmarks enriched ·{' '}
-                {status.stageCounts.categorized} categorized
+                {status.stageCounts.visionTagged} imágenes analizadas ·{' '}
+                {status.stageCounts.enriched} bookmarks enriquecidos ·{' '}
+                {status.stageCounts.categorized} categorizados
               </p>
             )}
           </div>
@@ -1182,7 +1182,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
               href="/bookmarks"
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
             >
-              View your bookmarks
+              Ver tus bookmarks
               <ChevronRight size={16} />
             </Link>
             <button
@@ -1190,7 +1190,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
               className="flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700"
             >
               <RefreshCw size={14} />
-              Reprocess all
+              Reprocesar todo
             </button>
           </div>
         </div>
@@ -1203,15 +1203,15 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
             <CheckCircle size={32} className="text-zinc-500" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-zinc-100">Already up to date</p>
-            <p className="text-zinc-500 text-sm mt-1">All bookmarks in this file were already imported</p>
+            <p className="text-xl font-bold text-zinc-100">Ya está al día</p>
+            <p className="text-zinc-500 text-sm mt-1">Todos los bookmarks de este archivo ya fueron importados</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/bookmarks"
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
             >
-              View your bookmarks
+              Ver tus bookmarks
               <ChevronRight size={16} />
             </Link>
             <button
@@ -1219,7 +1219,7 @@ function CategorizeStep({ importedCount, force = false }: { importedCount: numbe
               className="flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700"
             >
               <RefreshCw size={14} />
-              Reprocess all
+              Reprocesar todo
             </button>
           </div>
         </div>
@@ -1256,7 +1256,7 @@ function UncategorizedBanner({ onCategorize, onReprocess }: { onCategorize: () =
           <div className="flex items-center gap-2.5 min-w-0">
             <Sparkles size={15} className="text-indigo-400 shrink-0" />
             <p className="text-sm text-indigo-300">
-              <span className="font-semibold">{uncategorized.toLocaleString()}</span> bookmarks not yet processed
+              <span className="font-semibold">{uncategorized.toLocaleString()}</span> bookmarks aún no procesados
             </p>
           </div>
           <button
@@ -1264,7 +1264,7 @@ function UncategorizedBanner({ onCategorize, onReprocess }: { onCategorize: () =
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors shrink-0"
           >
             <Sparkles size={12} />
-            Process
+            Procesar
           </button>
         </div>
       )}
@@ -1272,7 +1272,7 @@ function UncategorizedBanner({ onCategorize, onReprocess }: { onCategorize: () =
         <div className="flex items-center gap-2.5 min-w-0">
           <RefreshCw size={15} className="text-zinc-400 shrink-0" />
           <p className="text-sm text-zinc-400">
-            Re-analyze all <span className="font-semibold text-zinc-300">{totalBookmarks.toLocaleString()}</span> bookmarks from scratch
+            Reanalizar todos los <span className="font-semibold text-zinc-300">{totalBookmarks.toLocaleString()}</span> bookmarks desde cero
           </p>
         </div>
         <button
@@ -1280,7 +1280,7 @@ function UncategorizedBanner({ onCategorize, onReprocess }: { onCategorize: () =
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-semibold transition-colors shrink-0"
         >
           <RefreshCw size={12} />
-          Reprocess all
+          Reprocesar todo
         </button>
       </div>
     </div>
@@ -1339,7 +1339,7 @@ export default function ImportPage() {
 
       if (parsed === 0) {
         // Parser couldn't extract any bookmarks — likely wrong format
-        throw new Error('Could not parse any bookmarks from this file. Make sure you\'re uploading a Twitter/X bookmarks JSON export.')
+        throw new Error('No se pudo analizar ningún bookmark de este archivo. Asegúrate de subir un archivo JSON de exportación de bookmarks de Twitter/X.')
       }
 
       // Auto-advance to categorization after a brief moment to show the result
@@ -1356,8 +1356,8 @@ export default function ImportPage() {
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-100">Import {importSource === 'like' ? 'Likes' : 'Bookmarks'}</h1>
-        <p className="text-zinc-400 mt-1">Export your X/Twitter {importSource === 'like' ? 'likes' : 'bookmarks'} as JSON, then upload below.</p>
+        <h1 className="text-2xl font-bold text-zinc-100">Importar {importSource === 'like' ? 'Likes' : 'Bookmarks'}</h1>
+        <p className="text-zinc-400 mt-1">Exporta tus {importSource === 'like' ? 'likes' : 'bookmarks'} de X/Twitter como JSON, luego súbelos abajo.</p>
       </div>
 
       {/* Source selector */}
@@ -1381,7 +1381,7 @@ export default function ImportPage() {
                 : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
             }`}
           >
-            Likes
+            Likes (me gusta)
           </button>
         </div>
       )}
@@ -1390,7 +1390,7 @@ export default function ImportPage() {
 
       {importError && (
         <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-4">
-          Import failed: {importError}
+          Error al importar: {importError}
         </p>
       )}
 
