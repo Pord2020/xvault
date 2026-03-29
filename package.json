@@ -9,9 +9,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
-    "postinstall": "prisma generate",
     "lint": "eslint",
     "siftly": "tsx cli/siftly.ts"
   },
